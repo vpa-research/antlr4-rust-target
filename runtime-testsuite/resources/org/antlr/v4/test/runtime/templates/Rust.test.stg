@@ -7,7 +7,7 @@ True() ::= "true"
 Not(v) ::= "!<v>"
 Assert(s) ::= ""
 Cast(t,v) ::= "dynamic_cast\<<t> *>(<v>)" // Should actually use a more specific name. We may have to use other casts as well.
-Append(a,b) ::= "<a> + <b>->toString()"
+Append(a,b) ::= "<a> + <b>.to_string()"
 Concat(a,b) ::= "<a><b>"
 
 DeclareLocal(s,v) ::= "let mut <s> = <v>"
@@ -18,31 +18,31 @@ AssignLocal(s,v) ::= "<s> = <v>;"
 InitIntMember(n,v) ::= "let <n>:int = <v>;"
 InitBooleanMember(n,v) ::= "let <n>:bool = <v>;"
 
-GetMember(n) ::= "<n>"
-SetMember(n,v) ::= "<n> = <v>;"
-AddMember(n,v) ::= "<n> += <v>;"
-PlusMember(v,n) ::= "<v> + <n>"
-MemberEquals(n,v) ::= "<n> == <v>"
-ModMemberEquals(n,m,v) ::= "<n> % <m> == <v>"
-ModMemberNotEquals(n,m,v) ::= "<n> % <m> != <v>"
+GetMember(n) ::= "self.<n>"
+SetMember(n,v) ::= "self.<n> = <v>;"
+AddMember(n,v) ::= "self.<n> += <v>;"
+PlusMember(n,v) ::= "self.<n> + <v>"
+MemberEquals(n,v) ::= "self.<n> == <v>"
+ModMemberEquals(n,m,v) ::= "self.<n> % <m> == <v>"
+ModMemberNotEquals(n,m,v) ::= "self.<n> % <m> != <v>"
 
 DumpDFA() ::= "dumpDFA();"
 Pass() ::= "/* do nothing */"
 
 StringList() ::= "Vec\<String>"
-BuildParseTrees() ::= "setBuildParseTree(true);"
+BuildParseTrees() ::= "self.build_parse_trees = true;"
 BailErrorStrategy() ::= "_errHandler = std::make_shared\<BailErrorStrategy>();"
 
-ToStringTree(s) ::= "<s>.to_string_tree(self)"
-Column() ::= "lexer.get_char_position_in_line()"
-Text() ::= "lexer.get_text()"
+ToStringTree(s) ::= "<s>.to_string_tree(&self.base)"
+Column() ::= "recog.get_char_position_in_line()"
+Text() ::= "recog.get_text()"
 ValEquals(a,b) ::= "<a> == <b>"
-TextEquals(a) ::= "lexer.get_text() == \"<a>\""
-PlusText(a) ::="\"<a>\".to_owned() + &lexer.get_text()"
-InputText() ::= "_input.getText()"
-LTEquals(i, v) ::= "_input.lt(<i>).getText() == <v>"
-LANotEquals(i, v) ::= "_input.LA(<i>) != <v>"
-TokenStartColumnEquals(i) ::= "lexer.token_start_column == <i>"
+TextEquals(a) ::= "recog.get_text() == \"<a>\""
+PlusText(a) ::="\"<a>\".to_owned() + &recog.get_text()"
+InputText() ::= "self.base.input.get_all_text()"
+LTEquals(i, v) ::= "self.base.input.lt(<i>).getText() == <v>"
+LANotEquals(i, v) ::= "self.base.input.la(<i>) != <v>"
+TokenStartColumnEquals(i) ::= "recog.token_start_column == <i>"
 
 ImportListener(X) ::= ""
 
@@ -66,7 +66,7 @@ bool Property() {
 }
 >>
 
-ParserPropertyCall(p, call) ::= "<call>"
+ParserPropertyCall(p, call) ::= "self.<call>"
 
 PositionAdjustingLexer() ::= <<
 protected:
@@ -251,22 +251,22 @@ void foo() {
 }
 >>
 
-Declare_foo() ::= <<void foo() {
-	std::cout \<\< "foo";
+Declare_foo() ::= <<pub fn foo() {
+	println!("foo");
 }
 >>
 
-Invoke_foo() ::= "foo();"
+Invoke_foo() ::= "self.foo();"
 
 Declare_pred() ::= <<
-bool pred(bool v) {
-	std::cout \<\< "eval=" \<\< std::boolalpha \<\< v \<\< std::endl;
+pub fn pred(&self,v:bool)-> bool {
+	println!("{}",v);
 	return v;
 }
 >>
 
-Invoke_pred(v) ::= <<pred(<v>)>>
+Invoke_pred(v) ::= <<recog.pred(<v>)>>
 
-ContextRuleFunction(ctx, rule) ::= "<ctx>-><rule>"
+ContextRuleFunction(ctx, rule) ::= "<ctx>.<rule>"
 StringType() ::= "String"
 ContextMember(ctx, subctx, member) ::= "<ctx>-><subctx>-><member>"

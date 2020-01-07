@@ -29,7 +29,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-javaTypeInitMap ::= [
+rutsTypeInitMap ::= [
 	"int":"0",
 	"long":"0",
 	"float":"0.0f",
@@ -38,6 +38,7 @@ javaTypeInitMap ::= [
 	"byte":"0",
 	"short":"0",
 	"char":"0",
+	"String":<<String::new()>>,
 	default:"null" // anything other than a primitive type is an object
 ]
 
@@ -54,20 +55,20 @@ mod <file.genPackage>{
 #![allow(non_upper_case_globals)]
 #![feature(try_blocks)]
 use antlr_rust::prediction_context::PredictionContextCache;
-use antlr_rust::parser::{Parser, BaseParser};
+use antlr_rust::parser::{Parser, BaseParser, ParserRecog};
 use antlr_rust::token_stream::TokenStream;
 use antlr_rust::token_source::TokenSource;
 use antlr_rust::parser_atn_simulator::ParserATNSimulator;
-use antlr_rust::errors::{ANTLRError, NoViableAltError};
+use antlr_rust::errors::*;
 use antlr_rust::rule_context::{BaseRuleContext, CustomRuleContext, RuleContext};
-use antlr_rust::recognizer::Recognizer;
+use antlr_rust::recognizer::{Recognizer,Actions};
 use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::dfa::DFA;
 use antlr_rust::atn::{ATN, INVALID_ALT};
 use antlr_rust::error_strategy::{ErrorStrategy, DefaultErrorStrategy};
-use antlr_rust::parser_rule_context::{BaseParserRuleContext, ParserRuleContext};
+use antlr_rust::parser_rule_context::{BaseParserRuleContext, ParserRuleContext,ParserRuleContextType,cast,cast_mut};
 use antlr_rust::tree::TerminalNode;
-use antlr_rust::token::TOKEN_EOF;
+use antlr_rust::token::{TOKEN_EOF,OwningToken,Token};
 use antlr_rust::int_stream::EOF;
 use antlr_rust::vocabulary::{Vocabulary,VocabularyImpl};
 <if(file.genListener)>
@@ -91,7 +92,7 @@ ListenerFile(file, header, namedActions) ::= <<
 <fileHeader(file.grammarFileName, file.ANTLRVersion)>
 <header>
 use antlr_rust::tree::ParseTreeListener;
-use antlr_rust::parser_rule_context::ParserRuleContext;
+use antlr_rust::parser_rule_context::{ParserRuleContext,cast};
 use antlr_rust::parser::ListenerCaller;
 use super::<file.grammarName; format="low">parser::*;
 
@@ -128,7 +129,7 @@ impl ListenerCaller\<dyn <file.grammarName>Listener> for <file.grammarName>Liste
     	listener.enter_every_rule(ctx);
 		match ctx.get_rule_index(){
 			<file.listenerNames:{lname |
-	RULE_<lname> => listener.enter_<lname>(unsafe{&*(ctx as *const dyn ParserRuleContext as *const <lname; format="cap">Context)\}),
+	RULE_<lname> => listener.enter_<lname>(cast::\<_,<lname; format="cap">Context>(ctx)),
 			};separator="\n">
 			_ => panic!("invalid rule")
 		}
@@ -138,7 +139,7 @@ impl ListenerCaller\<dyn <file.grammarName>Listener> for <file.grammarName>Liste
        	listener.exit_every_rule(ctx);
         match ctx.get_rule_index(){
         	<file.listenerNames:{lname |
-    RULE_<lname> => listener.exit_<lname>(unsafe{&*(ctx as *const dyn ParserRuleContext as *const <lname; format="cap">Context)\}),
+    RULE_<lname> => listener.exit_<lname>(cast::\<_,<lname; format="cap">Context>(ctx)),
         	};separator="\n">
         	_ => panic!("invalid rule")
         }
@@ -264,7 +265,6 @@ impl <parser.name> {
         self.err_handler = strategy
     }
 
-	<namedActions.members>
 
     pub fn new(input: Box\<dyn TokenStream>) -> Self {
 		let interpreter = Arc::new(ParserATNSimulator::new(
@@ -301,20 +301,30 @@ impl DerefMut for <parser.name>{
 
 pub struct <parser.name>Ext;
 
+impl <parser.name>Ext{
+	<namedActions.members>
+}
+
+impl ParserRecog for <parser.name>Ext{}
+
 impl Recognizer for <parser.name>Ext{
+
 	fn get_grammar_file_name(&self) -> & str{ "<parser.grammarFileName>"}
 
 	fn get_rule_names(&self) -> &[& str] {&ruleNames}
 
 	fn get_vocabulary(&self) -> &dyn Vocabulary { &**VOCABULARY }
+}
 
-
-
+impl Actions for <parser.name>Ext{
+	type Recog = dyn Parser;
 <if(sempredFuncs)>
-	fn sempred(&mut self,lexer:&mut BaseLexer,_localctx: Option\<&dyn ParserRuleContext>, rule_index: usize, pred_index: usize)->bool{
+	fn sempred(&self,_localctx: Option\<&dyn ParserRuleContext>, rule_index: isize, pred_index: isize,
+			   recog:&\<Self as Actions>::Recog
+	)->bool{
 		match rule_index {
 		<parser.sempredFuncs.values:{f|
-			<f.ruleIndex> => self.<f.name>_sempred(lexer,_localctx, pred_index),}; separator="\n">
+			<f.ruleIndex> => self.<f.name>_sempred(_localctx, pred_index, recog),}; separator="\n">
 			_ => true
 		}
 	}
@@ -347,24 +357,24 @@ dumpActions(recog, argFuncs, actionFuncs, sempredFuncs) ::= <<
 	<if(actionFuncs)>
 
 	fn action(&mut self,_localctx: Option\<&dyn ParserRuleContext>, rule_index: isize, action_index: isize,
-	          lexer:&mut BaseLexer
+	          recog:&mut BaseLexer
 	    ){
 	    	match rule_index {
 			<recog.actionFuncs.values:{f|
 	        <f.ruleIndex> =>
-	        	self.<f.name>_action(_localctx, action_index, lexer), }; separator="\n">
+	        	self.<f.name>_action(_localctx, action_index, recog), }; separator="\n">
 			_ => {}
 		}
 	}
 	<endif>
 	<if(sempredFuncs)>
-	fn sempred(&mut self,_localctx: Option\<&dyn ParserRuleContext>, rule_index: isize, pred_index: isize,
-	           lexer:&mut BaseLexer
+	fn sempred(&self,_localctx: Option\<&dyn ParserRuleContext>, rule_index: isize, pred_index: isize,
+	           recog:&BaseLexer
 	    ) -> bool {
 	    	match rule_index {
 			<recog.sempredFuncs.values:{f|
 	        <f.ruleIndex> =>
-	        	self.<f.name>_sempred(_localctx, pred_index, lexer), }; separator="\n">
+	        	self.<f.name>_sempred(_localctx, pred_index, recog), }; separator="\n">
 			_ => true
 		}
 	}
@@ -386,9 +396,6 @@ impl <recog.name>Actions{
 parser_ctor(p) ::= <<
 >>
 
-/* This generates a private method since the actionIndex is generated, making an
- * overriding implementation impossible to maintain.
- */
 RuleActionFunction(r, actions) ::= <<
 
 fn <r.name>_action(&mut self,_localctx: Option\<&dyn ParserRuleContext>, action_index: isize,
@@ -405,14 +412,11 @@ fn <r.name>_action(&mut self,_localctx: Option\<&dyn ParserRuleContext>, action_
 }
 >>
 
-/* This generates a private method since the predIndex is generated, making an
- * overriding implementation impossible to maintain.
- */
 RuleSempredFunction(r, actions) ::= <<
 
 
-fn <r.name>_sempred(&mut self,_localctx: Option\<&dyn ParserRuleContext>, pred_index:isize,
-					lexer:&mut BaseLexer
+fn <r.name>_sempred(&self,_localctx: Option\<&dyn ParserRuleContext>, pred_index:isize,
+					recog:&\<Self as Actions>::Recog
 	) -> bool {
 	match pred_index {
 	<actions:{index|
@@ -427,21 +431,21 @@ fn <r.name>_sempred(&mut self,_localctx: Option\<&dyn ParserRuleContext>, pred_i
 RuleFunction(currentRule,args,code,locals,ruleCtx,altLabelCtxs,namedActions,finallyAction,postamble,exceptions) ::= <<
 
 <ruleCtx>
-<!<altLabelCtxs:{l | <altLabelCtxs.(l)>}; separator="\n">!>
+<altLabelCtxs:{l | <altLabelCtxs.(l)>}; separator="\n">
 
 <!pub trait <currentRule.name> {
 	<if(currentRule.modifiers)><currentRule.modifiers:{f | <f> }><else>fn <endif> <currentRule.name>(&mut self<args; separator=",">) ->Result\<()/*<currentRule.ctxType>*/,ANTLRError>;
 }!>
 
 impl <parser.name>{
-	<if(currentRule.modifiers)><currentRule.modifiers:{f | <f> }><else>pub fn<endif> <currentRule.name>(&mut self,<args; separator=",">) ->Result\<()/*<currentRule.ctxType>*/,ANTLRError> {
-		<!keeping parent ctx here because otherwise if we are not building tree parent would be referenced only by Weak reference from current ctx !>
+	<if(currentRule.modifiers)><currentRule.modifiers:{f | <f> }><else>pub fn<endif> <currentRule.name>(&mut self,<args; separator=",">) ->Result\<ParserRuleContextType/*<currentRule.ctxType>*/,ANTLRError> {
+		<!keeping parent ctx here because otherwise if we are not building tree, parent would be referenced only by Weak reference from current ctx !>
 		let _parentctx = self.ctx.take();
 		let mut _localctx = <currentRule.ctxType>::new(_parentctx.clone(), self.base.get_state()<currentRule.args:{a | , <a.name>}>);
 		//let mut _localctx = BaseRuleContext::new(self.ctx.take(), self.base.get_state());
         //self.ctx = Some(_localctx);
         //let mut _localctx = self.ctx.as_deref_mut().unwrap();
-        self.base.enter_rule(_localctx, <currentRule.startState>, RULE_<currentRule.name>);
+        self.base.enter_rule(_localctx.clone(), <currentRule.startState>, RULE_<currentRule.name>);
 		<namedActions.init>
 		<locals; separator="\n">
 		let result: Result\<(), ANTLRError> = try {
@@ -458,6 +462,9 @@ impl <parser.name>{
 		<else>
 		match result {
 		Ok(_)=>{},
+		<if(exceptions)>
+        <exceptions; separator="\n">
+        <endif>
 		Err(ref re) => {
 				//_localctx.exception = re;
 				self.err_handler.report_error(&mut self.base, re);
@@ -468,7 +475,7 @@ impl <parser.name>{
 		<finallyAction>
 		self.base.exit_rule();
 
-		Ok(())
+		Ok(_localctx)
 	}
 }
 >>
@@ -478,22 +485,22 @@ LeftRecursiveRuleFunction(currentRule,args,code,locals,ruleCtx,altLabelCtxs,
 <<
 
 <ruleCtx>
-<!<altLabelCtxs:{l | <altLabelCtxs.(l)>}; separator="\n">!>
+<altLabelCtxs:{l | <altLabelCtxs.(l)>}; separator="\n">
 impl <parser.name>{
 
-	<if(currentRule.modifiers)><currentRule.modifiers:{f | <f> }><else>pub fn <endif> <currentRule.name>(&mut self,<args; separator=", ">) -> Result\<<currentRule.ctxType>, ANTLRError> {
+	<if(currentRule.modifiers)><currentRule.modifiers:{f | <f> }><else>pub fn <endif> <currentRule.name>(&mut self,<args; separator=", ">) -> Result\<ParserRuleContextType/*<currentRule.ctxType>*/,ANTLRError> {
 		self.<currentRule.name>_rec(0<currentRule.args:{a | , <a.name>}>)
 	}
 
-	fn <currentRule.name>_rec(&mut self, _p: isize<args:{a | , <a>}>) -> Result\<<currentRule.ctxType>, ANTLRError> {
+	fn <currentRule.name>_rec(&mut self, _p: isize<args:{a | , <a>}>) -> Result\<ParserRuleContextType/*<currentRule.ctxType>*/,ANTLRError> {
 		let _parentctx = self.ctx.take();
-		//let _parentState = self.base.get_state();
+		let _parentState = self.base.get_state();
 		let mut _localctx = <currentRule.ctxType>::new(_parentctx.clone(), self.base.get_state()<currentRule.args:{a | , <a.name>}>);
         //self.ctx = Some(_localctx);
 	    //let mut _localctx = self.ctx.as_deref_mut().unwrap();
-		//let _prevctx = _localctx;
+		let mut _prevctx = _localctx.clone();
 		let _startState = <currentRule.startState>;
-		self.base.enter_recursion_rule(_localctx, <currentRule.startState>, RULE_<currentRule.name>, _p);
+		self.base.enter_recursion_rule(_localctx.clone(), <currentRule.startState>, RULE_<currentRule.name>, _p);
 		<namedActions.init>
 		<locals; separator="\n">
 		let result: Result\<(), ANTLRError> = try {
@@ -506,6 +513,9 @@ impl <parser.name>{
 		};
 		match result {
 		Ok(_) => {},
+		<if(exceptions)>
+        <exceptions; separator="\n">
+        <endif>
 		Err(ref re)=>{
 			//_localctx.exception = re;
 			self.err_handler.report_error(&mut self.base, re);
@@ -514,14 +524,14 @@ impl <parser.name>{
 		<finallyAction>
 		self.base.unroll_recursion_context(_parentctx);
 
-		Ok(())
+		Ok(_localctx)
 	}
 }
 >>
 
 CodeBlockForOuterMostAlt(currentOuterMostAltCodeBlock, locals, preamble, ops) ::= <<
-<if(currentOuterMostAltCodeBlock.altLabel)>let _localctx = <currentOuterMostAltCodeBlock.altLabel; format="cap">Context::new(_localctx);
-self.base.enter_outer_alt(_localctx, <currentOuterMostAltCodeBlock.alt.altNum>);
+<if(currentOuterMostAltCodeBlock.altLabel)>_localctx = <currentOuterMostAltCodeBlock.altLabel; format="cap">Context::new(_localctx);
+self.base.enter_outer_alt(Some(_localctx.clone()), <currentOuterMostAltCodeBlock.alt.altNum>);
 <else>
 self.base.enter_outer_alt(None, <currentOuterMostAltCodeBlock.alt.altNum>);
 <endif>
@@ -539,7 +549,7 @@ CodeBlockForAlt(currentAltCodeBlock, locals, preamble, ops) ::= <<
 LL1AltBlock(choice, preamble, alts, error) ::= <<
 self.base.set_state(<choice.stateNumber>);
 self.err_handler.sync(&mut self.base)?;
-<if(choice.label)><labelref(choice.label)> = self.base.input.lt(1);<endif>
+<if(choice.label)><labelref(choice.label)> = Some(self.base.input.lt(1).to_owned());<endif>
 <preamble; separator="\n">
 match self.base.input.la(1) {
 <choice.altLook,alts:{look,alt| <cases(ttypes=look)>
@@ -604,7 +614,7 @@ loop {
 AltBlock(choice, preamble, alts, error) ::= <<
 self.base.set_state(<choice.stateNumber>);
 self.err_handler.sync(&mut self.base)?;
-<if(choice.label)><labelref(choice.label)> = self.base.input.lt(1);<endif>
+<if(choice.label)><labelref(choice.label)> = Some(self.base.input.lt(1).to_owned());<endif>
 <preamble; separator="\n">
 match  self.interpreter.adaptive_predict(<choice.decision>,&mut self.base)? {
 <alts:{alt |
@@ -701,13 +711,22 @@ cases(ttypes) ::= <<
 >>
 
 InvokeRule(r, argExprsChunks) ::= <<
+/*InvokeRule <r.name>*/
 self.base.set_state(<r.stateNumber>);
-<if(r.labels)><r.labels:{l | <labelref(l)> = }><endif>self.<r.name><if(r.ast.options.p)>_rec<endif>(<if(r.ast.options.p)><r.ast.options.p><if(argExprsChunks)>,<endif><endif><argExprsChunks>)?;
+<LabelsAssign(r.labels,{self.<r.name><if(r.ast.options.p)>_rec<endif>(<if(r.ast.options.p)><r.ast.options.p><if(argExprsChunks)>,<endif><endif><argExprsChunks>)?})>
 >>
 
 MatchToken(m) ::= <<
 self.base.set_state(<m.stateNumber>);
-<if(m.labels)><m.labels:{l | <labelref(l)> = }><endif>self.base.match_token(<m.name>,self.err_handler.as_mut())?;
+<LabelsAssign(m.labels,{self.base.match_token(<m.name>,self.err_handler.as_mut())?})>
+>>
+
+LabelsAssign(labels,assign) ::= <<
+<if(labels)>
+<labels:{l | <labelref(l)> = Some(<assign>); }>
+<else>
+<assign>;
+<endif>
 >>
 
 MatchSet(m, expr, capture) ::= "<CommonSetStuff(m, expr, capture, false)>"
@@ -716,21 +735,21 @@ MatchNotSet(m, expr, capture) ::= "<CommonSetStuff(m, expr, capture, true)>"
 
 CommonSetStuff(m, expr, capture, invert) ::= <<
 self.base.set_state(<m.stateNumber>);
-<if(m.labels)><m.labels:{l | <labelref(l)> = }>self.base.input.lt(1);<endif>
+<if(m.labels)><m.labels:{l | <labelref(l)> = }>Some(self.base.input.lt(1).to_owned());<endif>
 <capture>
 if { <if(invert)><m.varName> \<= 0 || <else>!<endif>(<expr>) } {
-	<if(m.labels)><m.labels:{l | <labelref(l)> = (Token)}><endif>self.err_handler.recover_inline(&mut self.base);
+	<LabelsAssign(m.labels,{self.err_handler.recover_inline(&mut self.base)?})>
 }
 else {
-	if  self.base.input.la(1)==TOKEN_EOF { self.base.matched_eof = true};
+	if  self.base.input.la(1)==TOKEN_EOF { self.base.matched_eof = true };
 	self.err_handler.report_match(&mut self.base);
-	self.base.consume();
+	self.base.consume(self.err_handler.as_mut());
 }
 >>
 
 Wildcard(w) ::= <<
 self.base.set_state(<w.stateNumber>);
-<if(w.labels)><w.labels:{l | <labelref(l)> = }><endif>self.base.match_wildcard(self.err_handler.as_mut())?;
+<LabelsAssign(w.labels,{self.base.match_wildcard(self.err_handler.as_mut())?})>
 >>
 
 // ACTION STUFF
@@ -741,13 +760,14 @@ ArgAction(a, chunks) ::= "<chunks>"
 
 SemPred(p, chunks, failChunks) ::= <<
 self.base.set_state(<p.stateNumber>);
-if !(<chunks>) {Err(FailedPredicateError::new(self, <p.predicate><if(failChunks)>, <failChunks><elseif(p.msg)>, <p.msg><endif>))?;}
+<! its a hack to handle chunks being same here and in *_sempred() !>
+if !((|recog:&mut dyn Parser|->bool{<chunks>})(&mut self.base)) {
+	Err(FailedPredicateError::new(&mut self.base, Some(<p.predicate>.to_owned())<if(failChunks)>, Some(<failChunks>.to_owned())<elseif(p.msg)>, Some(<p.msg>.to_owned())<else>, None<endif>))?;
+}
 >>
 
 ExceptionClause(e, catchArg, catchAction) ::= <<
-catch (<catchArg>) {
-	<catchAction>
-}
+Err(<catchArg>) => {<catchAction>}
 >>
 
 // lexer actions are not associated with model objects
@@ -773,10 +793,10 @@ LabelRef(t) ::= "<ctx(t)>::<t.name>"
 ListLabelRef(t) ::= "<ctx(t)>.<ListLabelName(t.name)>"
 SetAttr(s,rhsChunks) ::= "<ctx(s)>.<s.name> = <rhsChunks>;"
 
-TokenLabelType() ::= "<file.TokenLabelType; null={Token}>"
-InputSymbolType() ::= "<file.InputSymbolType; null={Token}>"
+TokenLabelType() ::= "<file.TokenLabelType; null={OwningToken}>"
+InputSymbolType() ::= "<file.InputSymbolType; null={OwningToken}>"
 
-TokenPropertyRef_text(t) ::= "<ternary_op(cond={<ctx(t)>.<t.label>!=null},a={<ctx(t)>.<t.label>.get_text()},b={null})>"
+TokenPropertyRef_text(t) ::= << if let Some(it) = &<ctx(t)>.<t.label> { it.get_text() } else { "null" } >>
 TokenPropertyRef_type(t) ::= "(<ctx(t)>.<t.label>!=null?<ctx(t)>.<t.label>.getType():0)"
 TokenPropertyRef_line(t) ::= "(<ctx(t)>.<t.label>!=null?<ctx(t)>.<t.label>.getLine():0)"
 TokenPropertyRef_pos(t) ::= "(<ctx(t)>.<t.label>!=null?<ctx(t)>.<t.label>.getCharPositionInLine():0)"
@@ -786,11 +806,11 @@ TokenPropertyRef_int(t) ::= "(<ctx(t)>.<t.label>!=null?Integer.valueOf(<ctx(t)>.
 
 RulePropertyRef_start(r) ::= "(<ctx(r)>.<r.label>!=null?(<ctx(r)>.<r.label>.start):null)"
 RulePropertyRef_stop(r)	 ::= "(<ctx(r)>.<r.label>!=null?(<ctx(r)>.<r.label>.stop):null)"
-RulePropertyRef_text(r)	 ::= "(<ctx(r)>.<r.label>!=null?input.get_text(<ctx(r)>.<r.label>.start,<ctx(r)>.<r.label>.stop):null)"
-RulePropertyRef_ctx(r)	 ::= "<ctx(r)>.<r.label>"
+RulePropertyRef_text(r)	 ::= <<(<ctx(r)>.<r.label>.as_ref().map(|it| self.base.input.get_text_from_interval(it.get_start(),it.get_stop())).unwrap_or("null".to_owned()) )>>
+RulePropertyRef_ctx(r)	 ::= "<ctx(r)>.<r.label>.as_ref().unwrap()"
 RulePropertyRef_parser(r)	 ::= "self.base"
 
-ternary_op(cond,a,b) ::= " if cond {<a>} else {<b>}"
+ternary_op(cond,a,b) ::= " if <cond> {<a>} else {<b>}"
 
 ThisRulePropertyRef_start(r) ::= "_localctx.get_start()"
 ThisRulePropertyRef_stop(r)	 ::= "_localctx.get_stop()"
@@ -802,13 +822,15 @@ NonLocalAttrRef(s)		 ::= "((\<s.ruleName; format=\"cap\">Context)getInvokingCont
 SetNonLocalAttr(s, rhsChunks)	  ::=
 	"((<s.ruleName; format=\"cap\">Context)getInvokingContext(<s.ruleIndex>)).<s.name> = <rhsChunks>;"
 
-AddToLabelList(a) ::= "<ctx(a.label)>.<a.listName>.add(<labelref(a.label)>);"
+AddToLabelList(a) ::= <<
+let temp = <labelref(a.label)>.clone().unwrap();
+<ctx_mut(a.label)>.<a.listName>.push(temp);>>
 
-TokenDecl(t) ::= "let <t.name>: <TokenLabelType()>"
+TokenDecl(t) ::= "<t.name>: Option\<<TokenLabelType()>>"
 TokenTypeDecl(t) ::= "let mut <t.name>: isize;"
-TokenListDecl(t) ::= "let <t.name>:Vec\<Token> = Vec::new();"
-RuleContextDecl(r) ::= "let <r.name>: <r.ctxName>;"
-RuleContextListDecl(rdecl) ::= "let <rdecl.name>:Vec\<<rdecl.ctxName>> = Vec::new();"
+TokenListDecl(t) ::= "<t.name>:Vec\<<TokenLabelType()>>"
+RuleContextDecl(r) ::= "<r.name>: Option\<ParserRuleContextType/*<r.ctxName>*/>"
+RuleContextListDecl(rdecl) ::= "<rdecl.name>:Vec\<ParserRuleContextType/*<rdecl.ctxName>*/>"
 
 ContextTokenGetterDecl(t)      ::= <<
     pub fn <t.name>(&self) -> &TerminalNode {
@@ -816,7 +838,7 @@ ContextTokenGetterDecl(t)      ::= <<
     	//getToken(<parser.name>.<t.name>, 0)
     }>>
 ContextTokenListGetterDecl(t)  ::=<<
-    pub fn <t.name>s(&self) -> Vec\<&TerminalNode> {
+    pub fn <t.name>_all(&self) -> Vec\<&TerminalNode> {
     	unimplemented!()
     	//getTokens(<parser.name>.<t.name>)
     }>>
@@ -833,7 +855,7 @@ pub fn <r.name>(&self) -> &<r.ctxName> {
 }
 >>
 ContextRuleListGetterDecl(r)   ::= <<
-pub fn <r.name>s(&self) ->  Vec\<&<r.ctxName>\>{
+pub fn <r.name>_all(&self) ->  Vec\<&<r.ctxName>\>{
 	unimplemented!()
 	//getRuleContexts(<r.ctxName>.class)
 }
@@ -857,7 +879,7 @@ ImplicitRuleLabel(ruleName)	  ::= "<ruleName>"
 ImplicitSetLabel(id)		  ::= "_tset<id>"
 ListLabelName(label)		  ::= "<label>"
 
-CaptureNextToken(d) ::= "<d.varName> = self.base.input.lt(1);"
+CaptureNextToken(d) ::= "<d.varName> = self.base.input.lt(1).to_owned();"
 CaptureNextTokenType(d) ::= "<d.varName> = self.base.input.la(1);"
 
 StructDecl(struct,ctorAttrs,attrs,getters,dispatchMethods,interfaces,extensionMembers)
@@ -881,7 +903,7 @@ impl DerefMut for <struct.name>{
     }
 }
 
-pub struct <struct.name>Ext{<attrs:{a | public <a>;}; separator=",\n">}
+pub struct <struct.name>Ext{<attrs:{a | pub <a>}; separator=",\n">}
 impl CustomRuleContext for <struct.name>Ext{
 	fn get_rule_index(&self) -> usize {
 		RULE_<struct.derivedFromName>
@@ -893,17 +915,27 @@ impl <struct.name>{
 
 	<getters:{g | <g>}; separator="\n">
 	<if(ctorAttrs)>pub fn new(parent: ParserRuleContext, invokingState:usize) { Self {base:super(parent, invokingState);} }<endif>
-	pub fn new(parent: Option\<Rc\<dyn ParserRuleContext\>>, invoking_state: isize<ctorAttrs:{a | , <a>}>) -> Rc\<dyn ParserRuleContext> {
+	pub fn new(parent: Option\<ParserRuleContextType>, invoking_state: isize<ctorAttrs:{a | , <a>}>) -> Rc\<dyn ParserRuleContext> {
 		Rc::new(
-			BaseParserRuleContext::new_parser_ctx(parent, invoking_state,<struct.name>Ext{<struct.ctorAttrs:{a | <a.name> : <a.name>}; separator=",\n">}),
+			BaseParserRuleContext::new_parser_ctx(parent, invoking_state,<struct.name>Ext{
+			<!<attrs:{a | <a.name>:None,}>!>
+			<struct.tokenDecls:{a | <a.name>:None, }>
+			<struct.tokenTypeDecls:{a | <a.name>:-1, }>
+			<struct.tokenListDecls:{a | <a.name>:Vec::new(), }>
+			<struct.ruleContextDecls:{a | <a.name>:None, }>
+			<struct.ruleContextListDecls:{a | <a.name>:Vec::new(), }>
+			<struct.attributeDecls:{a | <a.name>:<initValue(a.type)>, }>
+			<struct.ctorAttrs:{a | <a.name> }; separator=",\n">
+			}),
 		)
 	}
-<if(struct.provideCopyFrom)> <! don't need copy unless we have subclasses !>
+	<! don't need copy unless we have subclasses !>
+<if(struct.provideCopyFrom)>
 	//public <struct.name>() { }
-	pub fn copyFrom(& mut self, ctx: <struct.name>) {
-		self.base.copyFrom(ctx);
-		<struct.attrs:{a | self.<a.name> = ctx.<a.name>;}; separator="\n">
-	}
+	//pub fn copy_into(&self, ctx: <struct.name>) {
+	//	//self.base.copyFrom(ctx);
+	//	<struct.attrs:{a | self.<a.name> = ctx.<a.name>;}; separator="\n">
+	//}
 <endif>
 	<!<dispatchMethods; separator="\n">!>
 	<extensionMembers; separator="\n">
@@ -911,14 +943,53 @@ impl <struct.name>{
 >>
 
 AltLabelStructDecl(struct,attrs,getters,dispatchMethods) ::= <<
-pub struct <struct.name>  {
-    base : <currentRule.name; format="cap">Context,
-	<attrs:{a | pub <a>,}; separator="\n">
+pub struct <struct.name>Ext{<attrs:{a | pub <a>}; separator=",\n">}
+impl CustomRuleContext for <struct.name>Ext{
+	fn get_rule_index(&self) -> usize {
+		RULE_<currentRule.name>
+	}
 }
+
+
+pub struct <struct.name>  {
+    <!base : <currentRule.name; format="cap">Context,!>
+    base : BaseParserRuleContext\<<struct.name>Ext>,
+}
+
+impl Deref for <struct.name>{
+    type Target = BaseParserRuleContext\<<struct.name>Ext>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for <struct.name>{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
+
 impl <struct.name>{
 	<getters:{g | <g>}; separator="\n">
-	pub fn <struct.name>(ctx: <currentRule.name; format="cap">Context) { copyFrom(ctx); }
-	<dispatchMethods; separator="\n">
+	pub fn new(ctx: Rc\<dyn ParserRuleContext>) -> Rc\<dyn ParserRuleContext> {
+		let base = (cast::\<_,<currentRule.name; format="cap">Context>(&ctx));
+		Rc::new(
+			BaseParserRuleContext::copy_from(&*ctx,<struct.name>Ext{
+			<!<struct.attrs:{a | <a.name>:None,}>!>
+			<struct.tokenDecls:{a | <a.name>:None, }>
+        	<struct.tokenTypeDecls:{a | <a.name>:-1, }>
+        	<struct.tokenListDecls:{a | <a.name>:Vec::new(), }>
+        	<struct.ruleContextDecls:{a | <a.name>:None, }>
+        	<struct.ruleContextListDecls:{a | <a.name>:Vec::new(), }>
+        	<struct.attributeDecls:{a | <a.name>:base.<a.name>, }>
+        	<!<struct.ctorAttrs:{a | <a.name> }; separator=",\n">!>
+			})
+		)
+		<!<struct.attrs:{a | result.<a.name> = ctx.<a.name>;}; separator="\n">!>
+	}
+	<!<dispatchMethods; separator="\n">!>
 }
 >>
 
@@ -935,34 +1006,38 @@ pub fn \<T> accept(visitor: ParseTreeVisitor\<T>) -> T {
 }
 >>
 
-AttributeDecl(d) ::= "let <d.name>: <d.type><if(d.initValue)> = <d.initValue><endif>"
+AttributeDecl(d) ::= "<d.name>: <d.type><if(d.initValue)> = <d.initValue><endif>"
 
 /** If we don't know location of label def x, use this template */
-labelref(x) ::= "<if(!x.isLocal)>(_localctx as <x.ctx.name>).<endif><x.name>"
+labelref(x) ::= "<if(!x.isLocal)><ctx_mut(x)>.<endif><x.name>"
 
 /** For any action chunk, what is correctly-typed context struct ptr? */
-ctx(actionChunk) ::= "(_localctx.<actionChunk.ctx.name>)"
+ctx(actionChunk) ::= "(cast::\<_,<actionChunk.ctx.name>>(&_localctx))"
+ctx_mut(actionChunk) ::= "cast_mut::\<<actionChunk.ctx.name>>(&mut _localctx)"
 
 // used for left-recursive rules
-recRuleAltPredicate(ruleName,opPrec)  ::= "precpred(_ctx, <opPrec>)"
+recRuleAltPredicate(ruleName,opPrec)  ::= "recog.precpred(None<!todo proper ctx?!>, <opPrec>)"
 recRuleSetReturnAction(src,name)	  ::= "$<name>=$<src>.<name>;"
-recRuleSetStopToken()                 ::= "_ctx.stop = input.lt(-1);"
+recRuleSetStopToken()                 ::= "self.base.ctx.as_ref().unwrap().set_stop(self.base.input.la(-1));"
 
 recRuleAltStartAction(ruleName, ctxName, label, isListLabel) ::= <<
-_localctx = <ctxName>Context::new(_parentctx, _parentState);
+/*recRuleAltStartAction*/
+_localctx = <ctxName>Context::new(_parentctx.clone(), _parentState);
 <if(label)>
 <if(isListLabel)>
-_localctx.<label>.add(_prevctx);
+_localctx.<label>.add(_prevctx.clone());
 <else>
-_localctx.<label> = _prevctx;
+cast_mut::\<<ctxName>Context>(&mut _localctx).<label> = Some(_prevctx.clone());
+<!_localctx.<label> = Some(_prevctx);!>
 <endif>
 <endif>
-<if(label)>_localctx.<label> = _prevctx;<endif>
-pushNewRecursionContext(_localctx, _startState, RULE_<ruleName>);
+<!<if(label)>_localctx.<label> = _prevctx;<endif>!>
+self.push_new_recursion_context(_localctx.clone(), _startState, RULE_<ruleName>);
 >>
 
 recRuleLabeledAltStartAction(ruleName, currentAltLabel, label, isListLabel) ::= <<
-_localctx = <currentAltLabel; format="cap">Context::new( <ruleName; format="cap">Context::new(_parentctx, _parentState));
+/*recRuleLabeledAltStartAction*/
+_localctx = <currentAltLabel; format="cap">Context::new( <ruleName; format="cap">Context::new(_parentctx.clone(), _parentState));
 <if(label)>
 <if(isListLabel)>
 ((<currentAltLabel; format="cap">Context)_localctx).<label>.add(_prevctx);
@@ -970,18 +1045,19 @@ _localctx = <currentAltLabel; format="cap">Context::new( <ruleName; format="cap"
 ((<currentAltLabel; format="cap">Context)_localctx).<label> = _prevctx;
 <endif>
 <endif>
-pushNewRecursionContext(_localctx, _startState, RULE_<ruleName>);
+self.push_new_recursion_context(_localctx.clone(), _startState, RULE_<ruleName>);
 >>
 
 recRuleReplaceContext(ctxName) ::= <<
+/*recRuleReplaceContext*/
 _localctx = <ctxName>Context::new(_localctx);
-_ctx = _localctx;
-_prevctx = _localctx;
+self.base.ctx = Some(_localctx.clone());
+_prevctx = _localctx.clone();
 >>
 
 recRuleSetPrevCtx() ::= <<
-triggerExitRuleEvent();
-_prevctx = _localctx;
+self.trigger_exit_rule_event();
+_prevctx = _localctx.clone();
 >>
 
 
@@ -996,12 +1072,12 @@ mod <lexerFile.genPackage>{
 #![allow(non_upper_case_globals)]
 use antlr_rust::atn::ATN;
 use antlr_rust::char_stream::CharStream;
-use antlr_rust::lexer::{BaseLexer, Lexer};
+use antlr_rust::lexer::{BaseLexer, Lexer, LexerRecog};
 use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::dfa::DFA;
 use antlr_rust::lexer_atn_simulator::{LexerATNSimulator, ILexerATNSimulator};
 use antlr_rust::prediction_context::PredictionContextCache;
-use antlr_rust::recognizer::Recognizer;
+use antlr_rust::recognizer::{Recognizer,Actions};
 use antlr_rust::error_listener::ErrorListener;
 use antlr_rust::token_source::TokenSource;
 use antlr_rust::common_token_factory::TokenFactory;
@@ -1046,8 +1122,8 @@ Lexer(lexer, atn, actionFuncs, sempredFuncs, superClass) ::= <<
 
 	<vocabulary(lexer.literalNames, lexer.symbolicNames)>
 
-impl\<'a> Deref for <lexer.name>{
-	type Target = BaseLexer\<'static>;
+impl Deref for <lexer.name>{
+	type Target = BaseLexer;
 
 	fn deref(&self) -> &Self::Target {
 		&self.base
@@ -1063,7 +1139,7 @@ impl DerefMut for <lexer.name>{
 
 
 pub struct <lexer.name> {
-	base: <superClass; null="BaseLexer">\<'static>,
+	base: <superClass; null="BaseLexer">,
 //	static { RuntimeMetaData.checkVersion("<lexerFile.ANTLRVersion>", RuntimeMetaData.VERSION); }
 
 }
@@ -1115,7 +1191,12 @@ impl <lexer.name>Actions{
 	<namedActions.members>
 }
 
-impl Recognizer for <lexer.name>Actions{
+impl LexerRecog for <lexer.name>Actions{}
+
+impl Recognizer for <lexer.name>Actions {}
+
+impl Actions for <lexer.name>Actions{
+	type Recog = BaseLexer;
 	<dumpActions(lexer, "", actionFuncs, sempredFuncs)>
 }
 
@@ -1191,7 +1272,7 @@ const _serializedATN:&'static str =
  *	must be an object, default value is "null".
  */
 initValue(typeName) ::= <<
-<javaTypeInitMap.(typeName)>
+<rustTypeInitMap.(typeName)>
 >>
 
 codeFileExtension() ::= ".rs"

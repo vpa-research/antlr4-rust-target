@@ -523,7 +523,8 @@ public class BaseRustTest implements RuntimeTestSupport {
 //			System.out.println("running cargo");
 			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet");
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
-//			builder.environment().put("RUST_BACKTRACE", "1");
+			builder.environment().put("RUST_BACKTRACE", "1");
+			builder.environment().put("RUSTFLAGS", "-Awarnings");
 			builder.directory(new File(tmpdir));
 			Process process = builder.start();
 			StreamVacuum stdoutVacuum = new StreamVacuum(process.getInputStream());
@@ -538,7 +539,8 @@ public class BaseRustTest implements RuntimeTestSupport {
 				output = null;
 			}
 			if (stderrVacuum.toString().length() > 0) {
-				antlrToolErrors.append(stderrVacuum.toString());
+				stderrDuringParse = stderrVacuum.toString();
+//				antlrToolErrors.append(stderrVacuum.toString());
 //				System.out.println(stderrVacuum.toString());
 			}
 			return output;
