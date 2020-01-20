@@ -6,53 +6,64 @@ False() ::= "false"
 True() ::= "true"
 Not(v) ::= "!<v>"
 Assert(s) ::= ""
-Cast(t,v) ::= "dynamic_cast\<<t> *>(<v>)" // Should actually use a more specific name. We may have to use other casts as well.
-Append(a,b) ::= "<a> + <b>.to_string()"
+Cast(t,v) ::= "cast::\<_,<t>>(&*<v>)"
+Append(a,b) ::= "<a>.to_string() + &(<b>).to_string()"
+AppendStr(a,b) ::= <%<a>.to_string() + &(<b>)%>
 Concat(a,b) ::= "<a><b>"
 
 DeclareLocal(s,v) ::= "let mut <s> = <v>"
 
-AssertIsList(v) ::= "assert!(<v>.len() >= 0);" // Use a method that exists only on a list (vector actually).
+AssertIsList(v) ::= "" //not sure if possible in Rust
 AssignLocal(s,v) ::= "<s> = <v>;"
 
-InitIntMember(n,v) ::= "let <n>:int = <v>;"
-InitBooleanMember(n,v) ::= "let <n>:bool = <v>;"
+InitIntMember(n,v) ::= <<
+@parser::fields {<n>: isize,}
+@parser::init   {<n>: <v>,}
+>>
+InitBooleanMember(n,v) ::= <<
+@parser::fields {<n>: bool,}
+@parser::init   {<n>: <v>,}
+>>
 
-GetMember(n) ::= "self.<n>"
-SetMember(n,v) ::= "self.<n> = <v>;"
-AddMember(n,v) ::= "self.<n> += <v>;"
-PlusMember(n,v) ::= "self.<n> + <v>"
-MemberEquals(n,v) ::= "self.<n> == <v>"
-ModMemberEquals(n,m,v) ::= "self.<n> % <m> == <v>"
-ModMemberNotEquals(n,m,v) ::= "self.<n> % <m> != <v>"
+IntArg(v) ::= "<v>: isize"
+VarRef(v) ::= "<v>"
 
-DumpDFA() ::= "dumpDFA();"
+GetMember(n) ::= "recog.<n>"
+SetMember(n,v) ::= "recog.<n> = <v>;"
+AddMember(n,v) ::= "recog.<n> += <v>;"
+PlusMember(n,v) ::= "recog.<n> + <v>"
+MemberEquals(n,v) ::= "recog.<n> == <v>"
+ModMemberEquals(n,m,v) ::= "recog.<n> % <m> == <v>"
+ModMemberNotEquals(n,m,v) ::= "recog.<n> % <m> != <v>"
+
+DumpDFA() ::= "recog.dump_dfa();"
 Pass() ::= "/* do nothing */"
 
 StringList() ::= "Vec\<String>"
-BuildParseTrees() ::= "self.build_parse_trees = true;"
-BailErrorStrategy() ::= "_errHandler = std::make_shared\<BailErrorStrategy>();"
+BuildParseTrees() ::= "recog.build_parse_trees = true;"
+BailErrorStrategy() ::= "recog.err_handler = Box::new(antlr_rust::error_strategy::BailErrorStrategy::new());"
 
-ToStringTree(s) ::= "<s>.to_string_tree(&self.base)"
+ToStringTree(s) ::= "<s>.to_string_tree(&recog.base)"
 Column() ::= "recog.get_char_position_in_line()"
 Text() ::= "recog.get_text()"
 ValEquals(a,b) ::= "<a> == <b>"
 TextEquals(a) ::= "recog.get_text() == \"<a>\""
 PlusText(a) ::="\"<a>\".to_owned() + &recog.get_text()"
-InputText() ::= "self.base.input.get_all_text()"
-LTEquals(i, v) ::= "self.base.input.lt(<i>).getText() == <v>"
-LANotEquals(i, v) ::= "self.base.input.la(<i>) != <v>"
+InputText() ::= "recog.base.input.get_all_text()"
+LTEquals(i, v) ::= "recog.input.lt(<i>).unwrap().get_text() == <v>"
+LANotEquals(i, v) ::= "recog.input.la(<i>) != <v>"
 TokenStartColumnEquals(i) ::= "recog.token_start_column == <i>"
 
 ImportListener(X) ::= ""
 
-GetExpectedTokenNames() ::= "getExpectedTokens().toString(_tokenNames)"
+GetExpectedTokenNames() ::= "recog.base.get_expected_tokens().to_token_string(recog.get_vocabulary())"
 
-RuleInvocationStack() ::= "Arrays::listToString(getRuleInvocationStack(), \", \")"
+RuleInvocationStack() ::= "format!(\"[{}]\",recog.get_rule_invocation_stack().join(\", \"))"
 
-LL_EXACT_AMBIG_DETECTION() ::= <<getInterpreter\<atn::ParserATNSimulator>()->setPredictionMode(atn::PredictionMode::LL_EXACT_AMBIG_DETECTION);>>
+LL_EXACT_AMBIG_DETECTION() ::= <<recog.get_interpreter().set_prediction_mode(antlr_rust::prediction_mode::PredictionMode::LL_EXACT_AMBIG_DETECTION);>>
 
-ParserToken(parser, token) ::= <%<parser>::<token>%>
+//ParserToken(parser, token) ::= <%<parser>.<token>%>
+ParserToken(parser, token) ::= <%self::<token>%>
 
 Production(p) ::= <%<p>%>
 
@@ -60,13 +71,13 @@ Result(r) ::= <%<r>%>
 
 ParserPropertyMember() ::= <<
 @members {
-bool Property() {
+fn Property(&self) -> bool {
 	return true;
 }
 }
 >>
 
-ParserPropertyCall(p, call) ::= "self.<call>"
+ParserPropertyCall(p, call) ::= "recog.<call>"
 
 PositionAdjustingLexer() ::= <<
 protected:
@@ -150,19 +161,22 @@ public:
 
 BasicListener(X) ::= <<
 @parser::definitions {
-#include "TBaseListener.h"
-class LeafListener : public TBaseListener {
-public:
-  virtual void visitTerminal(tree::TerminalNode *node) override {
-  std::cout \<\< node->getSymbol()->getText() \<\< std::endl;
-  }
-};
+use antlr_rust::tree::ParseTreeListener;
+struct TestListener;
+
+impl ParseTreeListener for TestListener{
+	fn visit_terminal(&self, node: &TerminalNode) {
+		println!("{}",node.symbol.get_text());
+	}
+}
+impl TListener for TestListener{}
 }
 >>
 
 WalkListener(s) ::= <<
-LeafListener listener;
-tree::ParseTreeWalker::DEFAULT.walk(&listener, <s>);
+let walker = antlr_rust::tree::ParseTreeWalker;
+let mut listener:Box\<dyn TListener> = Box::new(TestListener);
+walker.walk(&mut listener, <s>.deref());
 >>
 
 TreeNodeWithAltNumField(X) ::= <<
@@ -181,65 +195,83 @@ public:
 
 TokenGetterListener(X) ::= <<
 @parser::definitions {
-#include "TBaseListener.h"
-class LeafListener : public TBaseListener {
-public:
-  virtual void exitA(TParser::AContext *ctx) override {
-		if (ctx->children.size() == 2)
-			std::cout \<\< ctx->INT(0)->getSymbol()->getText() \<\< " " \<\< ctx->INT(1)->getSymbol()->getText()
-        \<\< " " \<\< Arrays::toString(ctx->INT()) \<\< std::endl;
-		else
-			std::cout \<\< ctx->ID()->getSymbol()->toString() \<\< std::endl;
+use antlr_rust::tree::ParseTreeListener;
+use crate::antlr_rust::tree::Tree;
+struct TestListener;
+
+impl TListener for TestListener{
+	fn exit_a(&mut self, node: &AContext) {
+		if node.get_children().len() == 2 {
+			println!("{} {} {:?}",node.INT(0).symbol.get_text(),node.INT(1).symbol.get_text(),node.INT_all())
+		} else{
+			println!("{}",node.ID().symbol);
+		}
 	}
-};
+}
+impl ParseTreeListener for TestListener{}
 }
 >>
 
 RuleGetterListener(X) ::= <<
 @parser::definitions {
-#include "TBaseListener.h"
-class LeafListener : public TBaseListener {
-public:
-  virtual void exitA(TParser::AContext *ctx) override {
-    if (ctx->children.size() == 2) {
-      std::cout \<\< ctx->b(0)->start->getText() \<\< " " \<\< ctx->b(1)->start->getText() \<\< " " \<\< ctx->b()[0]->start->getText() \<\< std::endl;
-    } else {
-      std::cout \<\< ctx->b(0)->start->getText() \<\< std::endl;
-    }
-  }
-};
+
+use antlr_rust::tree::ParseTreeListener;
+use crate::antlr_rust::tree::Tree;
+struct TestListener;
+
+impl TListener for TestListener{
+	fn exit_a(&mut self, node: &AContext) {
+		if node.get_children().len() == 2 {
+			println!("{} {} {}",
+				node.b(0).get_start().as_ref().unwrap().get_text(),
+				node.b(1).get_start().as_ref().unwrap().get_text(),
+				node.b_all()[0].get_start().as_ref().unwrap().get_text(),
+			)
+		} else{
+			println!("{}",node.b(0).get_start().as_ref().unwrap().get_text());
+		}
+	}
+}
+impl ParseTreeListener for TestListener{}
 }
 >>
 
 
 LRListener(X) ::= <<
 @parser::definitions {
-#include "TBaseListener.h"
-class LeafListener : public TBaseListener {
-public:
-  virtual void exitE(TParser::EContext *ctx) override {
-    if (ctx->children.size() == 3) {
-      std::cout \<\< ctx->e(0)->start->getText() \<\< " " \<\< ctx->e(1)->start->getText() \<\< " " \<\< ctx->e()[0]->start->getText() \<\< std::endl;
-    } else {
-      std::cout \<\< ctx->INT()->getSymbol()->getText() \<\< std::endl;
-    }
-  }
-};
+use antlr_rust::tree::ParseTreeListener;
+use antlr_rust::tree::Tree;
+struct TestListener;
+
+impl ParseTreeListener for TestListener{}
+impl TListener for TestListener{
+	fn exit_e(&mut self, ctx: &EContext) {
+		if ctx.get_children().len() == 3 {
+			println!("{} {} {}",ctx.e(0).get_start().unwrap().get_text(),ctx.e(1).get_start().unwrap().get_text(),ctx.e_all()[0].get_start().unwrap().get_text());
+		} else {
+			println!("{}",ctx.INT().symbol.get_text());
+		}
+	}
+}
 }
 >>
 
 LRWithLabelsListener(X) ::= <<
 @parser::definitions {
-#include "TBaseListener.h"
-class LeafListener : public TBaseListener {
-public:
-  virtual void exitCall(TParser::CallContext *ctx) override {
-    std::cout \<\< ctx->e()->start->getText() \<\< " " \<\< ctx->eList()->toString() \<\< std::endl;
+
+use antlr_rust::tree::ParseTreeListener;
+use antlr_rust::tree::Tree;
+struct TestListener;
+
+impl ParseTreeListener for TestListener{}
+impl TListener for TestListener{
+	fn exit_Call(&mut self, ctx: &CallContext) {
+		println!("{} {:?}",ctx.e().get_start().unwrap().get_text(),ctx.eList().to_string(None,None));
 	}
-	virtual void exitInt(TParser::IntContext *ctx) override {
-		std::cout \<\<  ctx->INT()->getSymbol()->getText() \<\< std::endl;
+	fn exit_Int(&mut self, ctx: &IntContext){
+		println!("{}",ctx.INT().symbol.get_text());
 	}
-};
+}
 }
 >>
 
@@ -251,22 +283,22 @@ void foo() {
 }
 >>
 
-Declare_foo() ::= <<pub fn foo() {
+Declare_foo() ::= <<pub fn foo(&self) {
 	println!("foo");
 }
 >>
 
-Invoke_foo() ::= "self.foo();"
+Invoke_foo() ::= "recog.foo();"
 
 Declare_pred() ::= <<
 pub fn pred(&self,v:bool)-> bool {
-	println!("{}",v);
+	println!("eval={}",v);
 	return v;
 }
 >>
 
 Invoke_pred(v) ::= <<recog.pred(<v>)>>
 
-ContextRuleFunction(ctx, rule) ::= "<ctx>.<rule>"
+ContextRuleFunction(ctx, rule) ::= "<ctx>.<rule>.as_ref().unwrap()"
 StringType() ::= "String"
-ContextMember(ctx, subctx, member) ::= "<ctx>-><subctx>-><member>"
+ContextMember(ctx, subctx, member) ::= "<ctx>.<subctx>.get_<member>()"

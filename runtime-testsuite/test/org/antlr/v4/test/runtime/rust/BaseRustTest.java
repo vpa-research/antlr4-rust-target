@@ -153,7 +153,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 
 	@Override
 	public String getTmpDir() {
-		return tmpdir;
+		return srcdir;
 	}
 
 	@Override
@@ -493,8 +493,9 @@ public class BaseRustTest implements RuntimeTestSupport {
 													boolean defaultListener,
 													String... extraOptions) {
 		ErrorQueue equeue =
-				BaseRuntimeTest.antlrOnString(srcdir, "Rust", grammarFileName, grammarStr, defaultListener, extraOptions);
+				BaseRuntimeTest.antlrOnString(getTmpDir(), "Rust", grammarFileName, grammarStr, defaultListener, extraOptions);
 		if (!equeue.errors.isEmpty()) {
+			System.out.println(equeue.errors);
 			return false;
 		}
 		return true;
@@ -521,7 +522,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 	private String cargo(String command) {
 		try {
 //			System.out.println("running cargo");
-			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet");
+			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline");
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
@@ -859,12 +860,15 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"use antlr_rust::token::OwningToken;\n" +
 				"use antlr_rust::token_stream::{UnbufferedTokenStream, TokenStream};\n" +
 				"use antlr_rust::common_token_stream::CommonTokenStream;\n" +
+				"use antlr_rust::parser::Parser;\n" +
+				"use antlr_rust::error_listener::DiagnosticErrorListener;\n" +
 				"\n" +
 				"fn main() -> std::io::Result\\<()>{\n" +
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
 				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(input)));\n" +
 				"	let mut token_source = CommonTokenStream::new(lexer);\n" +
-				"	let mut parser = <parserName>::new(Box::new(token_source));\n" +
+//				"	let mut parser = <parserName>::new(Box::new(token_source));\n" +
+				"<createParser>" +
 				"	let result = parser.<parserStartRuleName>();\n" +
 				"	\n" +
 				"	Ok(())" +
@@ -910,12 +914,12 @@ public class BaseRustTest implements RuntimeTestSupport {
 //			"	}\n" +
 //			"}"
 //			);
-		ST createParserST = new ST("        <parserName> parser = new <parserName>(tokens);\n");
+		ST createParserST = new ST("    let mut parser = <parserName>::new(Box::new(token_source));\n");
 		if (debug) {
 			createParserST =
 					new ST(
-							"        <parserName> parser = new <parserName>(tokens);\n" +
-									"        parser.addErrorListener(new DiagnosticErrorListener());\n");
+							"    let mut parser = <parserName>::new(Box::new(token_source));\n" +
+									"    parser.add_error_listener(Box::new(DiagnosticErrorListener::new(true)));\n");
 		}
 //		if ( profile ) {
 //			outputFileST.add("profile",
@@ -955,7 +959,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"			println!(\"{}\",token);\n" +
 				"		}\n" +
 				"	}\n" +
-				(showDFA ? "print!(\"{}\",_lexer.get_interpreter().unwrap().get_dfa().to_lexer_String());\n" : "") +
+				(showDFA ? "print!(\"{}\",_lexer.get_interpreter().unwrap().get_dfa().to_lexer_string());\n" : "") +
 				"	Ok(())" +
 				"}\n"
 		);

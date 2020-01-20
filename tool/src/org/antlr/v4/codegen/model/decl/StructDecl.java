@@ -7,11 +7,7 @@
 package org.antlr.v4.codegen.model.decl;
 
 import org.antlr.v4.codegen.OutputModelFactory;
-import org.antlr.v4.codegen.model.DispatchMethod;
-import org.antlr.v4.codegen.model.ListenerDispatchMethod;
-import org.antlr.v4.codegen.model.ModelElement;
-import org.antlr.v4.codegen.model.OutputModelObject;
-import org.antlr.v4.codegen.model.VisitorDispatchMethod;
+import org.antlr.v4.codegen.model.*;
 import org.antlr.v4.runtime.misc.OrderedHashSet;
 import org.antlr.v4.tool.Attribute;
 import org.antlr.v4.tool.Rule;
@@ -42,6 +38,9 @@ public class StructDecl extends Decl {
 	public OrderedHashSet<Decl> ruleContextDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> ruleContextListDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> attributeDecls = new OrderedHashSet<Decl>();
+	// needed to be able to initialize attributes that come from constructor differently
+	// required for Rust target
+	public OrderedHashSet<AttributeDecl> notCtorAttrs = new OrderedHashSet<AttributeDecl>();
 
 	public StructDecl(OutputModelFactory factory, Rule r) {
 		super(factory, factory.getGenerator().getTarget().getRuleFunctionContextStructName(r));
@@ -88,6 +87,10 @@ public class StructDecl extends Decl {
 		}
 		else if ( d instanceof AttributeDecl ) {
 			attributeDecls.add(d);
+			AttributeDecl attr = (AttributeDecl) d;
+			if (!attr.initFromConstructor) {
+				notCtorAttrs.add(attr);
+			}
 		}
 	}
 
