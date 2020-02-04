@@ -27,7 +27,10 @@ import org.stringtemplate.v4.ST;
 import org.stringtemplate.v4.STGroup;
 import org.stringtemplate.v4.STGroupString;
 
-import java.io.*;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URL;
 import java.util.*;
 
 import static junit.framework.TestCase.*;
@@ -37,23 +40,7 @@ import static org.junit.Assert.assertArrayEquals;
 public class BaseRustTest implements RuntimeTestSupport {
 	public static final String newline = System.getProperty("line.separator");
 	public static final String pathSep = System.getProperty("path.separator");
-	public static final String RUNTIME_PATH = "/home/rrevenantt/dev/antlr-rust"; //todo change to github
-
-	/**
-	 * When the {@code antlr.testinprocess} runtime property is set to
-	 * {@code true}, the test suite will attempt to load generated classes into
-	 * the test process for direct execution rather than invoking the JVM in a
-	 * new process for testing.
-	 * <p>
-	 * <p>
-	 * In-process testing results in a substantial performance improvement, but
-	 * some test environments created by IDEs do not support the mechanisms
-	 * currently used by the tests to dynamically load compiled code. Therefore,
-	 * the default behavior (used in all other cases) favors reliable
-	 * cross-system test execution by executing generated test code in a
-	 * separate process.</p>
-	 */
-	public static final boolean TEST_IN_SAME_PROCESS = Boolean.parseBoolean(System.getProperty("antlr.testinprocess"));
+//	public static final String RUNTIME_PATH = System.getProperty("user.dir") + "../antlr-rust"; //todo change to github
 
 	/**
 	 * When the {@code antlr.preserve-test-dir} runtime property is set to
@@ -66,7 +53,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 	 * directories for all tests which completed successfully, and preserving
 	 * the directories for tests which failed.</p>
 	 */
-	public static final boolean PRESERVE_TEST_DIR = true; //Boolean.parseBoolean(System.getProperty("antlr.preserve-test-dir"));
+	public static final boolean PRESERVE_TEST_DIR = Boolean.parseBoolean(System.getProperty("antlr.preserve-test-dir"));
 
 	/**
 	 * The base test directory is the directory where generated files get placed
@@ -90,6 +77,8 @@ public class BaseRustTest implements RuntimeTestSupport {
 	 * property is set, and otherwise {@code false}.</p>
 	 */
 	public static final boolean CREATE_PER_TEST_DIRECTORIES;
+
+	public String cargo_options = "";
 
 	static {
 		String baseTestDir = System.getProperty("antlr.java-test-dir");
@@ -125,7 +114,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 	@Override
 	public void testSetUp() throws Exception {
 //		STGroup.verbose = true;
-//		System.err.println("testSetUp "+Thread.currentThread().getName());
 		if (CREATE_PER_TEST_DIRECTORIES) {
 			// new output dir for each test
 			String threadName = Thread.currentThread().getName();
@@ -142,8 +130,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 		outputdir = new File(BASE_TEST_DIR, "output").getAbsolutePath();
 		srcdir = new File(tmpdir, "src").getAbsolutePath();
 
-//		tmpdir = new File(tmpdir, "src").getAbsolutePath();
-		System.out.println(tmpdir);
+//		System.out.println(tmpdir);
 		antlrToolErrors = new StringBuilder();
 	}
 
@@ -341,68 +328,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 		return null;
 	}
 
-	protected String load(String fileName, String encoding)
-			throws IOException {
-		if (fileName == null) {
-			return null;
-		}
-
-		String fullFileName = getClass().getPackage().getName().replace('.', '/') + '/' + fileName;
-		int size = 65000;
-		InputStreamReader isr;
-		InputStream fis = getClass().getClassLoader().getResourceAsStream(fullFileName);
-		if (encoding != null) {
-			isr = new InputStreamReader(fis, encoding);
-		} else {
-			isr = new InputStreamReader(fis);
-		}
-		try {
-			char[] data = new char[size];
-			int n = isr.read(data);
-			return new String(data, 0, n);
-		} finally {
-			isr.close();
-		}
-	}
-//
-//	/**
-//	 * Wow! much faster than compiling outside of VM. Finicky though.
-//	 * Had rules called r and modulo. Wouldn't compile til I changed to 'a'.
-//	 */
-//	protected boolean compile(String... fileNames) {
-//		List<File> files = new ArrayList<File>();
-//		for (String fileName : fileNames) {
-//			File f = new File(tmpdir, fileName);
-//			files.add(f);
-//		}
-//
-//		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-////		DiagnosticCollector<JavaFileObject> diagnostics =
-////			new DiagnosticCollector<JavaFileObject>();
-//
-//		StandardJavaFileManager fileManager =
-//			compiler.getStandardFileManager(null, null, null);
-//
-//		Iterable<? extends JavaFileObject> compilationUnits =
-//			fileManager.getJavaFileObjectsFromFiles(files);
-//
-//		Iterable<String> compileOptions =
-//			Arrays.asList("-g", "-source", "1.6", "-target", "1.6", "-implicit:class", "-Xlint:-options", "-d", tmpdir, "-cp", tmpdir+pathSep+CLASSPATH);
-//
-//		JavaCompiler.CompilationTask task =
-//			compiler.getTask(null, fileManager, null, compileOptions, null,
-//			                 compilationUnits);
-//		boolean ok = task.call();
-//
-//		try {
-//			fileManager.close();
-//		} catch (IOException ioe) {
-//			ioe.printStackTrace(System.err);
-//		}
-//
-//		return ok;
-//	}
-
 	protected String execLexer(String grammarFileName, String grammarStr,
 							   String lexerName, String input) {
 		return execLexer(grammarFileName, grammarStr, lexerName, input, false);
@@ -510,19 +435,31 @@ public class BaseRustTest implements RuntimeTestSupport {
 						"\n" +
 						"[dependencies]\n" +
 						"lazy_static = \"1.4\"\n" +
-						"antlr-rust = { path = \"" + RUNTIME_PATH + "\"}");
+						"antlr-rust = { path = \"" + locateRuntimeSrc() + "\"}");
 
 		cargo("build");
 		this.stderrDuringParse = null;
-//		System.out.println();
 
 		return cargo("run");
 	}
 
+	private String locateRuntimeSrc() {
+		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		URL rustRuntime = loader.getResource("Rust");
+		if (rustRuntime == null) {
+			throw new RuntimeException("Rust runtime file not found at:" + rustRuntime.getPath());
+		}
+		File runtimeDir = new File(rustRuntime.getPath());
+		if (!runtimeDir.exists()) {
+			throw new RuntimeException("Cannot find Rust ANTLR runtime");
+		}
+
+		return runtimeDir.getAbsolutePath();
+	}
+
 	private String cargo(String command) {
 		try {
-//			System.out.println("running cargo");
-			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline");
+			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline", cargo_options);
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
@@ -541,8 +478,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 			}
 			if (stderrVacuum.toString().length() > 0) {
 				stderrDuringParse = stderrVacuum.toString();
-//				antlrToolErrors.append(stderrVacuum.toString());
-//				System.out.println(stderrVacuum.toString());
 			}
 			return output;
 		} catch (Exception e) {
@@ -556,149 +491,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 		}
 //		return null;
 	}
-
-//	protected String rawExecRecognizer(String parserName,
-//									   String lexerName,
-//									   String parserStartRuleName,
-//									   boolean debug,
-//									   boolean profile)
-//	{
-//        this.stderrDuringParse = null;
-//		if ( parserName==null ) {
-//			writeLexerTestFile(lexerName, false);
-//		}
-//		else {
-//			writeTestFile(parserName,
-//						  lexerName,
-//						  parserStartRuleName,
-//						  debug,
-//						  profile);
-//		}
-//
-////		compile("Test.java");
-//		return execClass("Test");
-//	}
-
-//	public String execRecognizer() {
-//		return execClass("Test");
-//	}
-
-//	public String execClass(String className) {
-//		if (TEST_IN_SAME_PROCESS) {
-//			try {
-//				ClassLoader loader = new URLClassLoader(new URL[] { new File(tmpdir).toURI().toURL() }, ClassLoader.getSystemClassLoader());
-//                final Class<?> mainClass = (Class<?>)loader.loadClass(className);
-//				final Method mainMethod = mainClass.getDeclaredMethod("main", String[].class);
-//				PipedInputStream stdoutIn = new PipedInputStream();
-//				PipedInputStream stderrIn = new PipedInputStream();
-//				PipedOutputStream stdoutOut = new PipedOutputStream(stdoutIn);
-//				PipedOutputStream stderrOut = new PipedOutputStream(stderrIn);
-//				StreamVacuum stdoutVacuum = new StreamVacuum(stdoutIn);
-//				StreamVacuum stderrVacuum = new StreamVacuum(stderrIn);
-//
-//				PrintStream originalOut = System.out;
-//				System.setOut(new PrintStream(stdoutOut));
-//				try {
-//					PrintStream originalErr = System.err;
-//					try {
-//						System.setErr(new PrintStream(stderrOut));
-//						stdoutVacuum.start();
-//						stderrVacuum.start();
-//						mainMethod.invoke(null, (Object)new String[] { new File(tmpdir, "input").getAbsolutePath() });
-//					}
-//					finally {
-//						System.setErr(originalErr);
-//					}
-//				}
-//				finally {
-//					System.setOut(originalOut);
-//				}
-//
-//				stdoutOut.close();
-//				stderrOut.close();
-//				stdoutVacuum.join();
-//				stderrVacuum.join();
-//				String output = stdoutVacuum.toString();
-//				if ( output.length()==0 ) {
-//					output = null;
-//				}
-//				if ( stderrVacuum.toString().length()>0 ) {
-//					this.stderrDuringParse = stderrVacuum.toString();
-//				}
-//				return output;
-//			}
-//			catch (Exception ex) {
-//				throw new RuntimeException(ex);
-//			}
-//		}
-//
-//		try {
-//			String[] args = new String[] {
-//				"java", "-classpath", tmpdir+pathSep+CLASSPATH,
-//				"-Dfile.encoding=UTF-8",
-//				className, new File(tmpdir, "input").getAbsolutePath()
-//			};
-////			String cmdLine = Utils.join(args, " ");
-////			System.err.println("execParser: "+cmdLine);
-//			Process process =
-//				Runtime.getRuntime().exec(args, null, new File(tmpdir));
-//			StreamVacuum stdoutVacuum = new StreamVacuum(process.getInputStream());
-//			StreamVacuum stderrVacuum = new StreamVacuum(process.getErrorStream());
-//			stdoutVacuum.start();
-//			stderrVacuum.start();
-//			process.waitFor();
-//			stdoutVacuum.join();
-//			stderrVacuum.join();
-//			String output = stdoutVacuum.toString();
-//			if ( output.length()==0 ) {
-//				output = null;
-//			}
-//			if ( stderrVacuum.toString().length()>0 ) {
-//				this.stderrDuringParse = stderrVacuum.toString();
-//			}
-//			return output;
-//		}
-//		catch (Exception e) {
-//			System.err.println("can't exec recognizer");
-//			e.printStackTrace(System.err);
-//		}
-//		return null;
-//	}
-
-//	void ambig(List<Message> msgs, int[] expectedAmbigAlts, String expectedAmbigInput)
-//		throws Exception
-//	{
-//		ambig(msgs, 0, expectedAmbigAlts, expectedAmbigInput);
-//	}
-
-//	void ambig(List<Message> msgs, int i, int[] expectedAmbigAlts, String expectedAmbigInput)
-//		throws Exception
-//	{
-//		List<Message> amsgs = getMessagesOfType(msgs, AmbiguityMessage.class);
-//		AmbiguityMessage a = (AmbiguityMessage)amsgs.get(i);
-//		if ( a==null ) assertNull(expectedAmbigAlts);
-//		else {
-//			assertEquals(a.conflictingAlts.toString(), Arrays.toString(expectedAmbigAlts));
-//		}
-//		assertEquals(expectedAmbigInput, a.input);
-//	}
-
-//	void unreachable(List<Message> msgs, int[] expectedUnreachableAlts)
-//		throws Exception
-//	{
-//		unreachable(msgs, 0, expectedUnreachableAlts);
-//	}
-
-//	void unreachable(List<Message> msgs, int i, int[] expectedUnreachableAlts)
-//		throws Exception
-//	{
-//		List<Message> amsgs = getMessagesOfType(msgs, UnreachableAltsMessage.class);
-//		UnreachableAltsMessage u = (UnreachableAltsMessage)amsgs.get(i);
-//		if ( u==null ) assertNull(expectedUnreachableAlts);
-//		else {
-//			assertEquals(u.conflictingAlts.toString(), Arrays.toString(expectedUnreachableAlts));
-//		}
-//	}
 
 	List<ANTLRMessage> getMessagesOfType(List<ANTLRMessage> msgs, Class<? extends ANTLRMessage> c) {
 		List<ANTLRMessage> filtered = new ArrayList<ANTLRMessage>();
@@ -848,7 +640,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 		ST outputFileST = new ST("#![feature(try_blocks)]\n" +
 				"#![feature(inner_deref)]\n" +
 				"extern crate antlr_rust;\n" +
-//			"use antlr_rust::*;\n" +
 				"#[macro_use]\n" +
 				"extern crate lazy_static;\n" +
 				"mod <importLexer>;\n" +
@@ -867,53 +658,12 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
 				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(input)));\n" +
 				"	let mut token_source = CommonTokenStream::new(lexer);\n" +
-//				"	let mut parser = <parserName>::new(Box::new(token_source));\n" +
 				"<createParser>" +
 				"	let result = parser.<parserStartRuleName>();\n" +
 				"	\n" +
 				"	Ok(())" +
 				"}\n"
 		);
-//		ST outputFileST = new ST(
-//			"use antlr_rust::*;\n" +
-//			"#[macro_use]\n" +
-//			"extern crate lazy_static;\n" +
-//			"mod <importName>;\n" +
-//			"use <importName>::*;\n" +
-//			"use antlr_rust::input_stream::InputStream;\n" +
-//			"use antlr_rust::token::OwningToken;\n" +
-//			"use antlr_rust::token_stream::{UnbufferedTokenStream, TokenStream};\n" +
-//			"\n" +
-//			"public class Test {\n" +
-//			"    public static void main(String[] args) throws Exception {\n" +
-//			"        CharStream input = CharStreams.fromPath(Paths.get(args[0]));\n" +
-//			"        <lexerName> lex = new <lexerName>(input);\n" +
-//			"        CommonTokenStream tokens = new CommonTokenStream(lex);\n" +
-//			"        <createParser>\n"+
-//			"		 parser.setBuildParseTree(true);\n" +
-//			"		 <profile>\n"+
-//			"        ParserRuleContext tree = parser.<parserStartRuleName>();\n" +
-//			"		 <if(profile)>System.out.println(Arrays.toString(profiler.getDecisionInfo()));<endif>\n" +
-//			"        ParseTreeWalker.DEFAULT.walk(new TreeShapeListener(), tree);\n" +
-//			"    }\n" +
-//			"\n" +
-//			"	static class TreeShapeListener implements ParseTreeListener {\n" +
-//			"		@Override public void visitTerminal(TerminalNode node) { }\n" +
-//			"		@Override public void visitErrorNode(ErrorNode node) { }\n" +
-//			"		@Override public void exitEveryRule(ParserRuleContext ctx) { }\n" +
-//			"\n" +
-//			"		@Override\n" +
-//			"		public void enterEveryRule(ParserRuleContext ctx) {\n" +
-//			"			for (int i = 0; i \\< ctx.getChildCount(); i++) {\n" +
-//			"				ParseTree parent = ctx.getChild(i).getParent();\n" +
-//			"				if (!(parent instanceof RuleNode) || ((RuleNode)parent).getRuleContext() != ctx) {\n" +
-//			"					throw new IllegalStateException(\"Invalid parse tree shape detected.\");\n" +
-//			"				}\n" +
-//			"			}\n" +
-//			"		}\n" +
-//			"	}\n" +
-//			"}"
-//			);
 		ST createParserST = new ST("    let mut parser = <parserName>::new(Box::new(token_source));\n");
 		if (debug) {
 			createParserST =
@@ -921,14 +671,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 							"    let mut parser = <parserName>::new(Box::new(token_source));\n" +
 									"    parser.add_error_listener(Box::new(DiagnosticErrorListener::new(true)));\n");
 		}
-//		if ( profile ) {
-//			outputFileST.add("profile",
-//							 "ProfilingATNSimulator profiler = new ProfilingATNSimulator(parser);\n" +
-//							 "parser.setInterpreter(profiler);");
-//		}
-//		else {
-//			outputFileST.add("profile", new ArrayList<Object>());
-//		}
 		outputFileST.add("createParser", createParserST);
 		outputFileST.add("parserName", parserName);
 		outputFileST.add("importParser", parserName.toLowerCase());
@@ -947,6 +689,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"mod <importName>;\n" +
 				"use <importName>::*;\n" +
 				"use antlr_rust::input_stream::InputStream;\n" +
+				"use antlr_rust::lexer::Lexer;\n" +
 				"use antlr_rust::token::OwningToken;\n" +
 				"use antlr_rust::token_stream::{UnbufferedTokenStream, TokenStream};\n" +
 				"\n" +
@@ -959,34 +702,19 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"			println!(\"{}\",token);\n" +
 				"		}\n" +
 				"	}\n" +
-				(showDFA ? "print!(\"{}\",_lexer.get_interpreter().unwrap().get_dfa().to_lexer_string());\n" : "") +
+				(showDFA ? "print!(\"{}\",_lexer.get_interpreter().unwrap().get_dfa_for_mode(antlr_rust::lexer::LEXER_DEFAULT_MODE).to_lexer_string());\n" : "") +
 				"	Ok(())" +
 				"}\n"
 		);
 
 		outputFileST.add("lexerName", lexerName);
-		outputFileST.add("importName", lexerName.toLowerCase() + "lexer");
+		if (lexerName.endsWith("Lexer")) {
+			outputFileST.add("importName", lexerName.toLowerCase());
+		} else {
+			outputFileST.add("importName", lexerName.toLowerCase() + "lexer");
+		}
 		writeFile(srcdir, "main.rs", outputFileST.render());
 	}
-
-//	public void writeRecognizerAndCompile(String parserName, String lexerName,
-//										  String parserStartRuleName,
-//										  boolean debug,
-//										  boolean profile) {
-//		if ( parserName==null ) {
-//			writeLexerTestFile(lexerName, debug);
-//		}
-//		else {
-//			writeTestFile(parserName,
-//						  lexerName,
-//						  parserStartRuleName,
-//						  debug,
-//						  profile);
-//		}
-//
-//		compile("Test.java");
-//	}
-
 
 	protected void eraseFiles(final String filesEndingWith) {
 		File tmpdirF = new File(tmpdir);

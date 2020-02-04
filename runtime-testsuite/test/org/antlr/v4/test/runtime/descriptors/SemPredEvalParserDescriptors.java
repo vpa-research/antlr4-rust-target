@@ -26,7 +26,8 @@ public class SemPredEvalParserDescriptors {
 
 		/**
 		 * grammar T;
-		 * <InitIntMember("i","0")>
+		 *
+		 * @parser::members {<InitIntMember("i","0")>}
 		 * s : a+ ;
 		 * a : {<SetMember("i","1")>} ID {<MemberEquals("i","1")>}? {<writeln("\"alt 1\"")>}
 		 * | {<SetMember("i","2")>} ID {<MemberEquals("i","2")>}? {<writeln("\"alt 2\"")>}
@@ -309,7 +310,7 @@ public class SemPredEvalParserDescriptors {
 
 		/**
 		 grammar T;
-		 <InitBooleanMember("enumKeyword",True())>
+		 @parser::members {<InitBooleanMember("enumKeyword",True())>}
 		 primary
 		 :   ID {<AppendStr("\"ID \"", "$ID.text"):writeln()>}
 		 |   {<GetMember("enumKeyword"):Not()>}? 'enum' {<writeln("\"enum\"")>}
@@ -354,7 +355,7 @@ public class SemPredEvalParserDescriptors {
 
 		/**
 		 grammar T;
-		 <InitIntMember("i","0")>
+		 @parser::members {<InitIntMember("i","0")>}
 		 s : a[2] a[1];
 		 a[<IntArg("i")>]
 		 : {<ValEquals("$i","1")>}? ID {<writeln("\"alt 1\"")>}
@@ -388,7 +389,7 @@ public class SemPredEvalParserDescriptors {
 
 		/**
 		 grammar T;
-		 <InitIntMember("i","0")>
+		 @parser::members {<InitIntMember("i","0")>}
 		 s : a[2] a[1];
 		 a[<IntArg("i")>]
 		 : {<ValEquals("$i","1")>}? ID
@@ -597,7 +598,7 @@ public class SemPredEvalParserDescriptors {
 
 		/**
 		 grammar T;
-		 <InitIntMember("i","0")>
+		 @parser::members {<InitIntMember("i","0")>}
 		 s : ({<AddMember("i","1")>
 		 <write("\"i=\"")>
 		 <writeln(GetMember("i"))>} a)+ ;

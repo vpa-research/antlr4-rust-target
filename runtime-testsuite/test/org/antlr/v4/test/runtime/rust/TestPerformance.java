@@ -16,6 +16,7 @@ import org.junit.runners.Parameterized;
 public class TestPerformance extends BaseRuntimeTest {
 	public TestPerformance(RuntimeTestDescriptor descriptor) {
 		super(descriptor, new BaseRustTest());
+		((BaseRustTest) this.delegate).cargo_options = "--release";
 	}
 
 	@Parameterized.Parameters(name = "{0}")

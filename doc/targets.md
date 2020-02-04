@@ -10,6 +10,7 @@ This page lists the available and upcoming ANTLR runtimes. Please note that you 
 * [C++](cpp-target.md)
 * [Swift](swift-target.md)
 * [PHP](php-target.md)
+* [Rust](rust-target.md) (Unstable)
 
 ## Target feature parity
 

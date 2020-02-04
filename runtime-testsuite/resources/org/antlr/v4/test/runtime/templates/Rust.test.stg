@@ -6,7 +6,8 @@ False() ::= "false"
 True() ::= "true"
 Not(v) ::= "!<v>"
 Assert(s) ::= ""
-Cast(t,v) ::= "cast::\<_,<t>>(&*<v>)"
+//Cast(t,v) ::= "cast::\<_,<t>>(&*<v>)"
+Cast(t,v) ::= <<(if let EContextAll::<t>(ctx) = &*<v> { ctx } else { panic!("can't cast")} )>>
 Append(a,b) ::= "<a>.to_string() + &(<b>).to_string()"
 AppendStr(a,b) ::= <%<a>.to_string() + &(<b>)%>
 Concat(a,b) ::= "<a><b>"
@@ -16,13 +17,13 @@ DeclareLocal(s,v) ::= "let mut <s> = <v>"
 AssertIsList(v) ::= "" //not sure if possible in Rust
 AssignLocal(s,v) ::= "<s> = <v>;"
 
-InitIntMember(n,v) ::= <<
+InitIntMember(n,v) ::= <<}
 @parser::fields {<n>: isize,}
-@parser::init   {<n>: <v>,}
+@parser::init   {<n>: <v>,
 >>
-InitBooleanMember(n,v) ::= <<
+InitBooleanMember(n,v) ::= <<}
 @parser::fields {<n>: bool,}
-@parser::init   {<n>: <v>,}
+@parser::init   {<n>: <v>,
 >>
 
 IntArg(v) ::= "<v>: isize"
@@ -79,84 +80,97 @@ fn Property(&self) -> bool {
 
 ParserPropertyCall(p, call) ::= "recog.<call>"
 
+// unsupported
+TreeNodeWithAltNumField(X) ::= <<
+@parser::definitions {
+struct MyRuleNode\<T:CustomRuleContext>(BaseParserRuleContext\<MyRuleNodeCtx\<T> >);
+struct MyRuleNodeCtx\<T:CustomRuleContext>(T,std::cell::Cell\<isize>);
+use core::fmt::{Formatter,Debug};
+impl\<T:CustomRuleContext> Debug for MyRuleNode\<T>{
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        f.write_str(std::any::type_name::\<Self>())
+    }
+}
+
+impl\<T:CustomRuleContext> CustomRuleContext for MyRuleNodeCtx\<T>{
+    fn get_alt_number(&self) -> isize {self.1.get()}
+    fn set_alt_number(&self, _alt_number: isize) {self.1.set(_alt_number)}
+}
+
+
+impl\<T:CustomRuleContext> Deref for MyRuleNode\<T>{
+	type Target = dyn ParserRuleContext;
+	fn deref(&self) -> &Self::Target {&self.0}
+}
+impl\<T:CustomRuleContext> DerefMut for MyRuleNode\<T>{
+	fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+impl\<T:CustomRuleContext> antlr_rust::parser_rule_context::DerefSeal for MyRuleNode\<T>{}
+}
+>>
+
 PositionAdjustingLexer() ::= <<
-protected:
-  class PositionAdjustingLexerATNSimulator : public antlr4::atn::LexerATNSimulator {
-  public:
-    PositionAdjustingLexerATNSimulator(antlr4::Lexer *recog, const antlr4::atn::ATN &atn, std::vector\<antlr4::dfa::DFA> &decisionToDFA,
-                                       antlr4::atn::PredictionContextCache &sharedContextCache)
-      : antlr4::atn::LexerATNSimulator(recog, atn, decisionToDFA, sharedContextCache) {
+   fn handleAcceptPositionForIdentifier(this: &mut BaseLexer\<Self>) {
+     let tokenText = this.get_text();
+     let identifierLength = tokenText.chars().position(|it| !Self::isIdentifierChar(it)).unwrap() as isize;
+//     while (identifierLength \< tokenText.len() as isize && Self::isIdentifierChar(tokenText[identifierLength as usize])) {
+//       identifierLength+=1;
+//     }
+
+     if (this.get_input_stream().index() > this.token_start_char_index + identifierLength) {
+       let offset = identifierLength - 1;
+       let mut input = this.input.take().unwrap();
+       this.interpreter.as_mut().unwrap().resetAcceptPosition(input.as_mut(),
+         this.token_start_char_index + offset, this.token_start_line, this.token_start_column + offset);
+       this.input = Some(input);
+       //return;
+     };
+
+   }
+
+   fn handleAcceptPositionForKeyword(this: &mut BaseLexer\<Self>, keyword: &str) {
+   	let mut input = this.input.take().unwrap();
+     if (input.index() > this.token_start_char_index + keyword.len() as isize) {
+       let offset = keyword.len() as isize - 1;
+       this.interpreter.as_mut().unwrap().resetAcceptPosition(input.as_mut(),
+         this.token_start_char_index + offset, this.token_start_line, this.token_start_column + offset);
+       //return true;
+     }
+     this.input = Some(input);
+
+     //return false;
+   }
+
+   fn isIdentifierChar(c: char) -> bool{
+     return c.is_ascii_alphanumeric() || c == '_';
+   }
+>>
+
+PositionAdjustingLexerDef() ::= <<
+//@definitions
+trait PositionAdjustingLexerATNSim {
+    fn resetAcceptPosition(&mut self, input: &mut dyn CharStream, index: isize, line: isize, charPositionInLine: isize);
+  }
+impl PositionAdjustingLexerATNSim for antlr_rust::lexer_atn_simulator::LexerATNSimulator{
+    fn resetAcceptPosition(&mut self, input: &mut dyn CharStream, index: isize, line: isize, charPositionInLine: isize) {
+      input.seek(index);
+      self.set_line(line);
+      self.set_char_position_in_line(charPositionInLine);
+      self.consume(input);
     }
+}
 
-    void resetAcceptPosition(antlr4::CharStream *input, int index, int line, int charPositionInLine) {
-      input->seek(index);
-      _line = line;
-      _charPositionInLine = charPositionInLine;
-      consume(input);
+}
+@extend{
+
+  fn before_emit(lexer:&mut BaseLexer\<Self>) {
+    match (lexer.token_type) {
+      TOKENS => Self::handleAcceptPositionForKeyword(lexer,"tokens"),
+      LABEL => Self::handleAcceptPositionForIdentifier(lexer),
+      _ => {}
     }
-
-  };
-
-public:
-  virtual std::unique_ptr\<antlr4::Token> nextToken() override {
-    if (dynamic_cast\<PositionAdjustingLexerATNSimulator *>(_interpreter) == nullptr) {
-      delete _interpreter;
-      _interpreter = new PositionAdjustingLexerATNSimulator(this, _atn, _decisionToDFA, _sharedContextCache);
-    }
-
-    return antlr4::Lexer::nextToken();
   }
 
-  virtual antlr4::Token* emit() override {
-    switch (type) {
-      case TOKENS:
-        handleAcceptPositionForKeyword("tokens");
-        break;
-
-      case LABEL:
-        handleAcceptPositionForIdentifier();
-        break;
-
-      default:
-        break;
-    }
-    return antlr4::Lexer::emit();
-  }
-
-private:
-  bool handleAcceptPositionForIdentifier() {
-    std::string tokenText = getText();
-    int identifierLength = 0;
-    while (identifierLength \< tokenText.length() && isIdentifierChar(tokenText[identifierLength])) {
-      identifierLength++;
-    }
-
-    if (getInputStream()->index() > tokenStartCharIndex + identifierLength) {
-      int offset = identifierLength - 1;
-      getInterpreter\<PositionAdjustingLexerATNSimulator>()->resetAcceptPosition(getInputStream(),
-        tokenStartCharIndex + offset, tokenStartLine, tokenStartCharPositionInLine + offset);
-      return true;
-    }
-
-    return false;
-  }
-
-  bool handleAcceptPositionForKeyword(const std::string &keyword) {
-    if (getInputStream()->index() > tokenStartCharIndex + keyword.length()) {
-      long offset = keyword.size() - 1;
-      getInterpreter\<PositionAdjustingLexerATNSimulator>()->resetAcceptPosition(getInputStream(),
-        tokenStartCharIndex + offset, tokenStartLine, tokenStartCharPositionInLine + offset);
-      return true;
-    }
-
-    return false;
-  }
-
-  static bool isIdentifierChar(char c) {
-    return std::isalnum(c) || c == '_';
-  }
-
-public:
 >>
 
 BasicListener(X) ::= <<
@@ -177,20 +191,6 @@ WalkListener(s) ::= <<
 let walker = antlr_rust::tree::ParseTreeWalker;
 let mut listener:Box\<dyn TListener> = Box::new(TestListener);
 walker.walk(&mut listener, <s>.deref());
->>
-
-TreeNodeWithAltNumField(X) ::= <<
-@parser::members {
-class MyRuleNode : public antlr4::ParserRuleContext {
-public:
-  size_t altNum;
-	MyRuleNode(antlr4::ParserRuleContext *parent, int invokingStateNumber)
-		: antlr4::ParserRuleContext(parent, invokingStateNumber) {
-	}
-	virtual size_t getAltNumber() const override { return altNum; }
-	virtual void setAltNumber(size_t altNum) override { this->altNum = altNum; }
-};
-}
 >>
 
 TokenGetterListener(X) ::= <<
@@ -266,7 +266,7 @@ struct TestListener;
 impl ParseTreeListener for TestListener{}
 impl TListener for TestListener{
 	fn exit_Call(&mut self, ctx: &CallContext) {
-		println!("{} {:?}",ctx.e().get_start().unwrap().get_text(),ctx.eList().to_string(None,None));
+		println!("{} {}",ctx.e().get_start().unwrap().get_text(),ctx.eList().to_string(None,None));
 	}
 	fn exit_Int(&mut self, ctx: &IntContext){
 		println!("{}",ctx.INT().symbol.get_text());
@@ -276,10 +276,10 @@ impl TListener for TestListener{
 >>
 
 DeclareContextListGettersFunction() ::= <<
-void foo() {
-  SContext *s;
-  std::vector\<AContext *> a = s->a();
-  std::vector\<BContext *> b = s->b();
+fn foo() {
+  let s:SContext = unimplemented!();
+  let a:Vec\<Rc\<AContextAll> >  = s.a_all();
+  let b:Vec\<Rc\<BContextAll> >  = s.b_all();
 }
 >>
 

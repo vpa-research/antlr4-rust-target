@@ -35,15 +35,19 @@ public class ParseTreesDescriptors {
 		   : r=a ;
 
 		 a : 'f'
-		   | 'g'
-		   | 'x' b 'z'
-		   ;
+		 | 'g'
+		 | 'x' b 'z'
+		 ;
 		 b : 'e' {} | 'y'
-		   ;
+		 ;
 		 */
 		@CommentHasStringValue
 		public String grammar;
 
+		@Override
+		public boolean ignore(String targetName) {
+			return targetName.equals("Rust");
+		}
 	}
 
 	public static class ExtraToken extends BaseParserTestDescriptor {

@@ -21,7 +21,7 @@ import java.util.List;
  */
 public class StructDecl extends Decl {
 	public String derivedFromName; // rule name or label name
-	public boolean provideCopyFrom;
+	public boolean provideCopyFrom; // can be used to check if there are named Alts
 	@ModelElement public OrderedHashSet<Decl> attrs = new OrderedHashSet<Decl>();
 	@ModelElement public OrderedHashSet<Decl> getters = new OrderedHashSet<Decl>();
 	@ModelElement public Collection<AttributeDecl> ctorAttrs;
@@ -38,7 +38,7 @@ public class StructDecl extends Decl {
 	public OrderedHashSet<Decl> ruleContextDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> ruleContextListDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> attributeDecls = new OrderedHashSet<Decl>();
-	// needed to be able to initialize attributes that come from constructor differently
+	// Required to allow to initialize attributes that come from constructor differently
 	// required for Rust target
 	public OrderedHashSet<AttributeDecl> notCtorAttrs = new OrderedHashSet<AttributeDecl>();
 
