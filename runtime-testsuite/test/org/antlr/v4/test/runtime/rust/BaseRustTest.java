@@ -30,7 +30,6 @@ import org.stringtemplate.v4.STGroupString;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.URL;
 import java.util.*;
 
 import static junit.framework.TestCase.*;
@@ -40,7 +39,6 @@ import static org.junit.Assert.assertArrayEquals;
 public class BaseRustTest implements RuntimeTestSupport {
 	public static final String newline = System.getProperty("line.separator");
 	public static final String pathSep = System.getProperty("path.separator");
-//	public static final String RUNTIME_PATH = System.getProperty("user.dir") + "../antlr-rust"; //todo change to github
 
 	/**
 	 * When the {@code antlr.preserve-test-dir} runtime property is set to
@@ -130,7 +128,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 		outputdir = new File(BASE_TEST_DIR, "output").getAbsolutePath();
 		srcdir = new File(tmpdir, "src").getAbsolutePath();
 
-//		System.out.println(tmpdir);
+		System.out.println(tmpdir);
 		antlrToolErrors = new StringBuilder();
 	}
 
@@ -444,17 +442,18 @@ public class BaseRustTest implements RuntimeTestSupport {
 	}
 
 	private String locateRuntimeSrc() {
-		ClassLoader loader = Thread.currentThread().getContextClassLoader();
-		URL rustRuntime = loader.getResource("Rust");
-		if (rustRuntime == null) {
-			throw new RuntimeException("Rust runtime file not found at:" + rustRuntime.getPath());
-		}
-		File runtimeDir = new File(rustRuntime.getPath());
-		if (!runtimeDir.exists()) {
-			throw new RuntimeException("Cannot find Rust ANTLR runtime");
-		}
-
-		return runtimeDir.getAbsolutePath();
+//		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+//		URL rustRuntime = loader.getResource("Rust");
+//		if (rustRuntime == null) {
+//			throw new RuntimeException("Rust runtime file not found at:" + rustRuntime.getPath());
+//		}
+//		File runtimeDir = new File(rustRuntime.getPath());
+//		if (!runtimeDir.exists()) {
+//			throw new RuntimeException("Cannot find Rust ANTLR runtime");
+//		}
+//
+//		return runtimeDir.getAbsolutePath();
+		return "/home/rrevenantt/dev/antlr-rust";
 	}
 
 	private String cargo(String command) {
@@ -659,7 +658,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(input)));\n" +
 				"	let mut token_source = CommonTokenStream::new(lexer);\n" +
 				"<createParser>" +
-				"	let result = parser.<parserStartRuleName>();\n" +
+				"	let result = parser.<parserStartRuleName>().unwrap();\n" +
 				"	\n" +
 				"	Ok(())" +
 				"}\n"

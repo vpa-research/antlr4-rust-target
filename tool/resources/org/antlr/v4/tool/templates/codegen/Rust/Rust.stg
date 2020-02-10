@@ -753,7 +753,7 @@ ActionTemplate(t) ::= "<t.st>"
 ArgRef(a) ::= "*_localctx.get_<a.name>()"
 LocalRef(a) ::= "*_localctx.get_<a.name>()"
 RetValueRef(a) ::= "*_localctx.get_<a.name>()"
-QRetValueRef(a) ::= "/* Qret */<ctx(a)>.<a.dict>.as_ref().unwrap().get_<a.name>()"
+QRetValueRef(a) ::= "<ctx(a)>.<a.dict>.as_ref().unwrap().get_<a.name>()"
 /** How to translate $tokenLabel */
 TokenRef(t) ::= "<ctx(t)>.<t.name>.as_ref().unwrap()"
 LabelRef(t) ::= "<ctx(t)>.<t.name>.as_ref().unwrap()"
@@ -763,7 +763,7 @@ let tmp = {<rhsChunks>}.to_owned();
 <ctx_mut_action(s,{.set_<s.name>(tmp);})>
 >>
 
-TokenLabelType() ::= "<file.TokenLabelType; null={OwningToken}>"
+TokenLabelType() ::= "<file.InputSymbolType; null={OwningToken}>"
 InputSymbolType() ::= "<file.InputSymbolType; null={OwningToken}>"
 
 TokenPropertyRef_text(t) ::= << if let Some(it) = &<ctx(t)>.<t.label> { it.get_text() } else { "null" } >>
@@ -774,15 +774,15 @@ TokenPropertyRef_channel(t) ::= << if let Some(it) = &<ctx(t)>.<t.label> { it.ge
 TokenPropertyRef_index(t) ::= << if let Some(it) = &<ctx(t)>.<t.label> { it.get_token_index() } else { 0 } >>
 TokenPropertyRef_int(t) ::= "if let Some(it) = &<ctx(t)>.<t.label> { isize::from_str_radix(it.get_text(),10).unwrap() } else { 0 }"
 
-RulePropertyRef_start(r) ::= "if let Some(it) = &<ctx(r)>.<r.label> { it.get_start() } else { None }.unwrap_or_else(||(**antlr_rust::common_token_factory::INVALID_TOKEN).clone())"
-RulePropertyRef_stop(r)	 ::= "if let Some(it) = &<ctx(r)>.<r.label> { it.get_stop() } else { None }.unwrap_or_else(||(**antlr_rust::common_token_factory::INVALID_TOKEN).clone())"
-RulePropertyRef_text(r)	 ::= <<(<ctx(r)>.<r.label>.as_ref().map(|it| <self()>.input.get_text_from_interval(it.get_start().unwrap().get_token_index(),it.get_stop().unwrap().get_token_index())).unwrap_or("null".to_owned()) )>>
+RulePropertyRef_start(r) ::= "if let Some(it) = &<ctx(r)>.<r.label> { it.get_start().clone() } else { (**antlr_rust::common_token_factory::INVALID_TOKEN).clone() }"
+RulePropertyRef_stop(r)	 ::= "if let Some(it) = &<ctx(r)>.<r.label> { it.get_stop().clone() } else { (**antlr_rust::common_token_factory::INVALID_TOKEN).clone() }"
+RulePropertyRef_text(r)	 ::= <<(<ctx(r)>.<r.label>.as_ref().map(|it| <self()>.input.get_text_from_interval(it.get_start().get_token_index(),it.get_stop().get_token_index())).unwrap_or("null".to_owned()) )>>
 RulePropertyRef_ctx(r)	 ::= "<ctx(r)>.<r.label>.as_ref().unwrap()"
 RulePropertyRef_parser(r)	 ::= "<self()>"
 
 ThisRulePropertyRef_start(r) ::= "_localctx.get_start()"
 ThisRulePropertyRef_stop(r)	 ::= "_localctx.get_stop()"
-ThisRulePropertyRef_text(r)	 ::= "{let temp = <self()>.base.input.lt(-1).map(|it|it.get_token_index()).unwrap_or(-1); <self()>.input.get_text_from_interval(<self()>.get_parser_rule_context().get_start().unwrap().get_token_index(), temp)}"
+ThisRulePropertyRef_text(r)	 ::= "{let temp = <self()>.base.input.lt(-1).map(|it|it.get_token_index()).unwrap_or(-1); <self()>.input.get_text_from_interval(<self()>.get_parser_rule_context().get_start().get_token_index(), temp)}"
 ThisRulePropertyRef_ctx(r)	 ::= "_localctx"
 ThisRulePropertyRef_parser(r)	 ::= "<self()>"
 
@@ -804,7 +804,7 @@ RuleContextDecl(r) ::= "<r.name>: Option\<Rc\<<r.ctxName>All>>"
 RuleContextListDecl(rdecl) ::= "<rdecl.name>:Vec\<Rc\<<rdecl.ctxName>All>>"
 
 ContextTokenGetterDecl(t)      ::= <<
-fn <t.name>(&self) -> Rc\<TerminalNode> where Self:Sized{
+fn <t.name>(&self) -> Option\<Rc\<TerminalNode> > where Self:Sized{
 	self.get_token(<t.name>, 0)
 }>>
 ContextTokenListGetterDecl(t)  ::=<<
@@ -812,7 +812,7 @@ fn <t.name>_all(&self) -> Vec\<Rc\<TerminalNode> >  where Self:Sized{
 	self.children_of_type()
 }>>
 ContextTokenListIndexedGetterDecl(t)  ::= <<
-fn <t.name>(&self, i: usize) -> Rc\<TerminalNode> where Self:Sized{
+fn <t.name>(&self, i: usize) -> Option\<Rc\<TerminalNode> > where Self:Sized{
 	self.get_token(<t.name>, i)
 }
 >>

@@ -179,7 +179,7 @@ use antlr_rust::tree::ParseTreeListener;
 struct TestListener;
 
 impl ParseTreeListener for TestListener{
-	fn visit_terminal(&self, node: &TerminalNode) {
+	fn visit_terminal(&mut self, node: &TerminalNode) {
 		println!("{}",node.symbol.get_text());
 	}
 }
@@ -202,9 +202,9 @@ struct TestListener;
 impl TListener for TestListener{
 	fn exit_a(&mut self, node: &AContext) {
 		if node.get_children().len() == 2 {
-			println!("{} {} {:?}",node.INT(0).symbol.get_text(),node.INT(1).symbol.get_text(),node.INT_all())
+			println!("{} {} {:?}",node.INT(0).unwrap().symbol.get_text(),node.INT(1).unwrap().symbol.get_text(),node.INT_all())
 		} else{
-			println!("{}",node.ID().symbol);
+			println!("{}",node.ID().unwrap().symbol);
 		}
 	}
 }
@@ -223,12 +223,12 @@ impl TListener for TestListener{
 	fn exit_a(&mut self, node: &AContext) {
 		if node.get_children().len() == 2 {
 			println!("{} {} {}",
-				node.b(0).get_start().as_ref().unwrap().get_text(),
-				node.b(1).get_start().as_ref().unwrap().get_text(),
-				node.b_all()[0].get_start().as_ref().unwrap().get_text(),
+				node.b(0).get_start().get_text(),
+				node.b(1).get_start().get_text(),
+				node.b_all()[0].get_start().get_text(),
 			)
 		} else{
-			println!("{}",node.b(0).get_start().as_ref().unwrap().get_text());
+			println!("{}",node.b(0).get_start().get_text());
 		}
 	}
 }
@@ -247,9 +247,9 @@ impl ParseTreeListener for TestListener{}
 impl TListener for TestListener{
 	fn exit_e(&mut self, ctx: &EContext) {
 		if ctx.get_children().len() == 3 {
-			println!("{} {} {}",ctx.e(0).get_start().unwrap().get_text(),ctx.e(1).get_start().unwrap().get_text(),ctx.e_all()[0].get_start().unwrap().get_text());
+			println!("{} {} {}",ctx.e(0).get_start().get_text(),ctx.e(1).get_start().get_text(),ctx.e_all()[0].get_start().get_text());
 		} else {
-			println!("{}",ctx.INT().symbol.get_text());
+			println!("{}",ctx.INT().unwrap().symbol.get_text());
 		}
 	}
 }
@@ -266,10 +266,10 @@ struct TestListener;
 impl ParseTreeListener for TestListener{}
 impl TListener for TestListener{
 	fn exit_Call(&mut self, ctx: &CallContext) {
-		println!("{} {}",ctx.e().get_start().unwrap().get_text(),ctx.eList().to_string(None,None));
+		println!("{} {}",ctx.e().get_start().get_text(),ctx.eList().to_string(None,None));
 	}
 	fn exit_Int(&mut self, ctx: &IntContext){
-		println!("{}",ctx.INT().symbol.get_text());
+		println!("{}",ctx.INT().unwrap().symbol.get_text());
 	}
 }
 }
