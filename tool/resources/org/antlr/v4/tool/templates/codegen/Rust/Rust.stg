@@ -52,8 +52,10 @@ mod <file.genPackage>{
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
 <namedActions.header>
-use antlr_rust::prediction_context::PredictionContextCache;
+use antlr_rust::PredictionContextCache;
 use antlr_rust::parser::{Parser, BaseParser, ParserRecog};
 use antlr_rust::token_stream::TokenStream;
 use antlr_rust::token_source::TokenSource;
@@ -93,7 +95,6 @@ ListenerFile(file, header, namedActions) ::= <<
 <fileHeader(file.grammarFileName, file.ANTLRVersion)>
 <header>
 use antlr_rust::tree::ParseTreeListener;
-use antlr_rust::parser_rule_context::{ParserRuleContext,cast};
 use super::<file.grammarName; format="low">parser::*;
 
 use std::any::Any;
@@ -111,7 +112,7 @@ pub trait <file.grammarName>Listener : ParseTreeListener{
 <endif>
  * @param ctx the parse tree
  */
-fn enter_<lname>(&mut self, ctx: &<lname; format="cap">Context) { \}
+fn enter_<lname>(&mut self, _ctx: &<lname; format="cap">Context) { \}
 /**
 <if(file.listenerLabelRuleNames.(lname))>
  * Exit a parse tree produced by the {@code <lname>\}
@@ -121,7 +122,7 @@ fn enter_<lname>(&mut self, ctx: &<lname; format="cap">Context) { \}
 <endif>
  * @param ctx the parse tree
  */
-fn exit_<lname>(&mut self, ctx: &<lname; format="cap">Context) { \}}; separator="\n">
+fn exit_<lname>(&mut self, _ctx: &<lname; format="cap">Context) { \}}; separator="\n">
 
 }
 
@@ -204,6 +205,7 @@ impl <parser.name> {
     }
 
     pub fn new(input: Box\<dyn TokenStream>) -> Self {
+		antlr_rust::recognizer::check_version("0","1");
 		let interpreter = Arc::new(ParserATNSimulator::new(
 			_ATN.clone(),
 			_decision_to_DFA.clone(),
@@ -804,14 +806,19 @@ RuleContextDecl(r) ::= "<r.name>: Option\<Rc\<<r.ctxName>All>>"
 RuleContextListDecl(rdecl) ::= "<rdecl.name>:Vec\<Rc\<<rdecl.ctxName>All>>"
 
 ContextTokenGetterDecl(t)      ::= <<
+/// Retrieves first TerminalNode corresponding to token <t.name>
+/// Returns `None` if there is no child corresponding to token <t.name>
 fn <t.name>(&self) -> Option\<Rc\<TerminalNode> > where Self:Sized{
 	self.get_token(<t.name>, 0)
 }>>
 ContextTokenListGetterDecl(t)  ::=<<
+/// Retrieves all `TerminalNode`s corresponding to token <t.name> in current rule
 fn <t.name>_all(&self) -> Vec\<Rc\<TerminalNode> >  where Self:Sized{
 	self.children_of_type()
 }>>
 ContextTokenListIndexedGetterDecl(t)  ::= <<
+/// Retrieves 'i's TerminalNode corresponding to token <t.name> starting from 0.
+/// Returns `None` if number of children corresponding to token <t.name> is less or equal than `i`.
 fn <t.name>(&self, i: usize) -> Option\<Rc\<TerminalNode> > where Self:Sized{
 	self.get_token(<t.name>, i)
 }
@@ -912,24 +919,6 @@ impl <struct.name>Attrs for <struct.name> {}
 
 AltLabelStructDecl(struct,attrs,getters,dispatchMethods) ::= <<
 
-//pub struct <struct.name>  {
-//    <!base : <currentRule.name; format="cap">Context,!>
-//    base : BaseParserRuleContext\<<struct.name>Ext>,
-//}
-//
-//impl Deref for <struct.name>{
-//    type Target = BaseParserRuleContext\<<struct.name>Ext>;
-//
-//    fn deref(&self) -> &Self::Target {
-//        &self.base
-//    }
-//}
-//
-//impl DerefMut for <struct.name>{
-//    fn deref_mut(&mut self) -> &mut Self::Target {
-//        &mut self.base
-//    }
-//}
 pub type <struct.name> = <if(contextSuperClass)><contextSuperClass><else>BaseParserRuleContext<endif>\<<struct.name>Ext>;
 
 pub trait <struct.name>Attrs: ParserRuleContext{
@@ -1076,6 +1065,7 @@ mod <lexerFile.genPackage>{
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
 <namedActions.header>
 use antlr_rust::atn::ATN;
 use antlr_rust::char_stream::CharStream;
@@ -1083,7 +1073,7 @@ use antlr_rust::lexer::{BaseLexer, Lexer, LexerRecog};
 use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::dfa::DFA;
 use antlr_rust::lexer_atn_simulator::{LexerATNSimulator, ILexerATNSimulator};
-use antlr_rust::prediction_context::PredictionContextCache;
+use antlr_rust::PredictionContextCache;
 use antlr_rust::recognizer::{Recognizer,Actions};
 use antlr_rust::error_listener::ErrorListener;
 use antlr_rust::token_source::TokenSource;
@@ -1163,7 +1153,7 @@ impl <lexer.name> {
         &_SYMBOLIC_NAMES
     }
 
-    fn add_error_listener(&mut self, _listener: Box\<ErrorListener>) {
+    fn add_error_listener(&mut self, _listener: Box\<dyn ErrorListener>) {
         self.base.add_error_listener(_listener);
     }
 
@@ -1176,6 +1166,7 @@ impl <lexer.name> {
     }
 
 	pub fn new (input: Box\<dyn CharStream>) -> Self {
+		antlr_rust::recognizer::check_version("0","1");
     	Self {
 			base: BaseLexer::new_base_lexer(
 				input,
@@ -1225,6 +1216,10 @@ impl TokenSource for <lexer.name> {
     fn get_input_stream(&mut self) -> &mut dyn CharStream {
         self.base.get_input_stream()
     }
+
+	fn get_source_name(&self) -> String {
+		self.base.get_source_name()
+	}
 
     fn get_token_factory(&self) -> &dyn TokenFactory {
         self.base.get_token_factory()

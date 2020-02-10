@@ -30,6 +30,7 @@ import org.stringtemplate.v4.STGroupString;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URL;
 import java.util.*;
 
 import static junit.framework.TestCase.*;
@@ -128,7 +129,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 		outputdir = new File(BASE_TEST_DIR, "output").getAbsolutePath();
 		srcdir = new File(tmpdir, "src").getAbsolutePath();
 
-		System.out.println(tmpdir);
+//		System.out.println(tmpdir);
 		antlrToolErrors = new StringBuilder();
 	}
 
@@ -442,18 +443,17 @@ public class BaseRustTest implements RuntimeTestSupport {
 	}
 
 	private String locateRuntimeSrc() {
-//		ClassLoader loader = Thread.currentThread().getContextClassLoader();
-//		URL rustRuntime = loader.getResource("Rust");
-//		if (rustRuntime == null) {
-//			throw new RuntimeException("Rust runtime file not found at:" + rustRuntime.getPath());
-//		}
-//		File runtimeDir = new File(rustRuntime.getPath());
-//		if (!runtimeDir.exists()) {
-//			throw new RuntimeException("Cannot find Rust ANTLR runtime");
-//		}
-//
-//		return runtimeDir.getAbsolutePath();
-		return "/home/rrevenantt/dev/antlr-rust";
+		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		URL rustRuntime = loader.getResource("Rust");
+		if (rustRuntime == null) {
+			throw new RuntimeException("Rust runtime file not found at:" + rustRuntime.getPath());
+		}
+		File runtimeDir = new File(rustRuntime.getPath());
+		if (!runtimeDir.exists()) {
+			throw new RuntimeException("Cannot find Rust ANTLR runtime");
+		}
+
+		return runtimeDir.getAbsolutePath();
 	}
 
 	private String cargo(String command) {
