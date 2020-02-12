@@ -35,11 +35,11 @@ public class ParseTreesDescriptors {
 		   : r=a ;
 
 		 a : 'f'
-		 | 'g'
-		 | 'x' b 'z'
-		 ;
+		   | 'g'
+		   | 'x' b 'z'
+		   ;
 		 b : 'e' {} | 'y'
-		 ;
+		   ;
 		 */
 		@CommentHasStringValue
 		public String grammar;

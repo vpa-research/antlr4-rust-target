@@ -25,16 +25,15 @@ public class SemPredEvalParserDescriptors {
 		public String grammarName = "T";
 
 		/**
-		 * grammar T;
-		 *
-		 * @parser::members {<InitIntMember("i","0")>}
-		 * s : a+ ;
-		 * a : {<SetMember("i","1")>} ID {<MemberEquals("i","1")>}? {<writeln("\"alt 1\"")>}
-		 * | {<SetMember("i","2")>} ID {<MemberEquals("i","2")>}? {<writeln("\"alt 2\"")>}
-		 * ;
-		 * ID : 'a'..'z'+ ;
-		 * INT : '0'..'9'+;
-		 * WS : (' '|'\n') -> skip ;
+		 grammar T;
+		 @parser::members {<InitIntMember("i","0")>}
+		 s : a+ ;
+		 a : {<SetMember("i","1")>} ID {<MemberEquals("i","1")>}? {<writeln("\"alt 1\"")>}
+		   | {<SetMember("i","2")>} ID {<MemberEquals("i","2")>}? {<writeln("\"alt 2\"")>}
+		   ;
+		 ID : 'a'..'z'+ ;
+		 INT : '0'..'9'+;
+		 WS : (' '|'\n') -> skip ;
 		 */
 		@CommentHasStringValue
 		public String grammar;
@@ -93,7 +92,7 @@ public class SemPredEvalParserDescriptors {
 		 start : e[0] EOF;
 		 e[<IntArg("_p")>]
 		     :   ( 'a' | 'b'+ ) ( {3 >= $_p}? '+' e[4] )*
-		 ;
+		     ;
 
 		 */
 		@CommentHasStringValue
@@ -108,8 +107,8 @@ public class SemPredEvalParserDescriptors {
 	public static class DependentPredsInGlobalFOLLOW extends BaseParserTestDescriptor {
 		public String input = "a!";
 		/**
-		 eval=true
-		 parse
+		  eval=true
+		  parse
 		 */
 		@CommentHasStringValue
 		public String output;
@@ -269,7 +268,7 @@ public class SemPredEvalParserDescriptors {
 		 grammar T;
 		 file_
 		 @after {<ToStringTree("$ctx"):writeln()>}
-		 : para para EOF ;
+		   : para para EOF ;
 		 para: paraContent NL NL ;
 		 paraContent : ('s'|'x'|{<LANotEquals("2",{<ParserToken("TParser", "NL")>})>}? NL)+ ;
 		 NL : '\n' ;
@@ -312,8 +311,8 @@ public class SemPredEvalParserDescriptors {
 		 grammar T;
 		 @parser::members {<InitBooleanMember("enumKeyword",True())>}
 		 primary
-		 :   ID {<AppendStr("\"ID \"", "$ID.text"):writeln()>}
-		 |   {<GetMember("enumKeyword"):Not()>}? 'enum' {<writeln("\"enum\"")>}
+		     :   ID {<AppendStr("\"ID \"", "$ID.text"):writeln()>}
+		     |   {<GetMember("enumKeyword"):Not()>}? 'enum' {<writeln("\"enum\"")>}
 		     ;
 		 ID : [a-z]+ ;
 		 WS : [ \t\n\r]+ -> skip ;
@@ -358,8 +357,8 @@ public class SemPredEvalParserDescriptors {
 		 @parser::members {<InitIntMember("i","0")>}
 		 s : a[2] a[1];
 		 a[<IntArg("i")>]
-		 : {<ValEquals("$i","1")>}? ID {<writeln("\"alt 1\"")>}
-		 | {<ValEquals("$i","2")>}? ID {<writeln("\"alt 2\"")>}
+		   : {<ValEquals("$i","1")>}? ID {<writeln("\"alt 1\"")>}
+		   | {<ValEquals("$i","2")>}? ID {<writeln("\"alt 2\"")>}
 		   ;
 		 ID : 'a'..'z'+ ;
 		 INT : '0'..'9'+;
@@ -392,8 +391,8 @@ public class SemPredEvalParserDescriptors {
 		 @parser::members {<InitIntMember("i","0")>}
 		 s : a[2] a[1];
 		 a[<IntArg("i")>]
-		 : {<ValEquals("$i","1")>}? ID
-		 | {<ValEquals("$i","2")>}? ID
+		   : {<ValEquals("$i","1")>}? ID
+		   | {<ValEquals("$i","2")>}? ID
 		   ;
 		 ID : 'a'..'z'+ ;
 		 INT : '0'..'9'+;
@@ -603,7 +602,7 @@ public class SemPredEvalParserDescriptors {
 		 <write("\"i=\"")>
 		 <writeln(GetMember("i"))>} a)+ ;
 		 a : {<ModMemberEquals("i","2","0")>}? ID {<writeln("\"alt 1\"")>}
-		 | {<ModMemberNotEquals("i","2","0")>}? ID {<writeln("\"alt 2\"")>}
+		   | {<ModMemberNotEquals("i","2","0")>}? ID {<writeln("\"alt 2\"")>}
 		   ;
 		 ID : 'a'..'z'+ ;
 		 INT : '0'..'9'+;

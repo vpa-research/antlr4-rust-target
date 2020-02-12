@@ -27,7 +27,7 @@ runtime, installed above.
 
 Suppose you're using a UNIX system and have set up an alias for the ANTLR4 tool 
 as described in [the getting started guide](https://github.com/antlr/antlr4/blob/master/doc/getting-started.md). 
-To generate your PHP parser, run the following command:
+To generate your Rust parser, run the following command:
 
 ```bash
 antlr4 -Dlanguage=Rust MyGrammar.g4
