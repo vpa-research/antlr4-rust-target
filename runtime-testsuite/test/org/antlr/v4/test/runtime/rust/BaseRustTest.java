@@ -458,7 +458,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 
 	private String cargo(String command) {
 		try {
-			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline", cargo_options);
+			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", cargo_options);
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
