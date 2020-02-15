@@ -33,17 +33,19 @@ jobs:
       stage: smoke-test
     - script: skip
       before_install: skip
-      install: skip
+#      install: skip
       stage: deploy
       deploy:
         provider: releases
         token: $GITHUB_TOKEN
         repo: rrevenantt/antlr4rust
         file: tool/target/antlr4-4.8-2-SNAPSHOT-complete.jar
+        tag_name: SNAPSHOT
         overwrite: true
         cleanup: false
         edge: true
         on:
+          tags: false
           branch: rust-target
 
     #    - os: linux
@@ -244,9 +246,3 @@ script:
     cat target/surefire-reports/*.dumpstream || true;
     exit $rc
 
-#before_deploy:
-#  - echo "asdvvasdC"
-#  - git config --local user.name "tmp"
-#  - git config --local user.email "tmp@tmp.tmp"
-#  - export TRAVIS_TAG="tmptag"
-#  - git tag -f -a $TRAVIS_TAG
