@@ -22,7 +22,6 @@ stages:
   #  - extended-test
   - deploy
 
-
 jobs:
   include:
     - os: linux
@@ -33,21 +32,19 @@ jobs:
       stage: smoke-test
     - script: skip
       before_install: skip
-#      install: skip
       stage: deploy
       deploy:
         provider: releases
         token: $GITHUB_TOKEN
         repo: rrevenantt/antlr4rust
         file: tool/target/antlr4-4.8-2-SNAPSHOT-complete.jar
-        tag_name: SNAPSHOT
+        tag_name: antlr4-4.8-2-Rust-latest
         overwrite: true
         cleanup: false
         edge: true
         on:
           tags: false
           branch: rust-target
-
     #    - os: linux
     #        dist: trusty
     #        compiler: clang
@@ -164,30 +161,30 @@ jobs:
     #        - GROUP=PARSER
     #      stage: extended-test
     #    - os: osx
-  #      osx_image: xcode10.2
-  #      env:
-  #        - TARGET=dotnet
-  #        - GROUP=RECURSION
-  #      stage: extended-test
-  #    - os: linux
-  #      dist: trusty
-  #      jdk: openjdk7
-  #      env: TARGET=java
-  #      stage: extended-test
-  #    - os: linux
-  #      jdk: openjdk8
-  #      env: TARGET=java
-  #      stage: smoke-test
-  #    - os: linux
-  #      jdk: openjdk8
-  #      env: TARGET=csharp
-  #      stage: main-test
-  #    - os: linux
-  #      language: php
-  #      php:
-  #        - 7.2
-  #      jdk: openjdk8
-  #      env: TARGET=php
+    #      osx_image: xcode10.2
+    #      env:
+    #        - TARGET=dotnet
+    #        - GROUP=RECURSION
+    #      stage: extended-test
+    #    - os: linux
+    #      dist: trusty
+    #      jdk: openjdk7
+    #      env: TARGET=java
+    #      stage: extended-test
+    - os: linux
+      jdk: openjdk8
+      env: TARGET=java
+      stage: smoke-test
+    #    - os: linux
+    #      jdk: openjdk8
+    #      env: TARGET=csharp
+    #      stage: main-test
+    #    - os: linux
+    #      language: php
+    #      php:
+    #        - 7.2
+    #      jdk: openjdk8
+    #      env: TARGET=php
     #      stage: main-test
     #    - os: linux
     #      jdk: openjdk8

@@ -223,12 +223,12 @@ impl TListener for TestListener{
 	fn exit_a(&mut self, node: &AContext) {
 		if node.get_children().len() == 2 {
 			println!("{} {} {}",
-				node.b(0).get_start().get_text(),
-				node.b(1).get_start().get_text(),
+				node.b(0).unwrap().get_start().get_text(),
+				node.b(1).unwrap().get_start().get_text(),
 				node.b_all()[0].get_start().get_text(),
 			)
 		} else{
-			println!("{}",node.b(0).get_start().get_text());
+			println!("{}",node.b(0).unwrap().get_start().get_text());
 		}
 	}
 }
@@ -247,7 +247,7 @@ impl ParseTreeListener for TestListener{}
 impl TListener for TestListener{
 	fn exit_e(&mut self, ctx: &EContext) {
 		if ctx.get_children().len() == 3 {
-			println!("{} {} {}",ctx.e(0).get_start().get_text(),ctx.e(1).get_start().get_text(),ctx.e_all()[0].get_start().get_text());
+			println!("{} {} {}",ctx.e(0).unwrap().get_start().get_text(),ctx.e(1).unwrap().get_start().get_text(),ctx.e_all()[0].get_start().get_text());
 		} else {
 			println!("{}",ctx.INT().unwrap().symbol.get_text());
 		}
@@ -266,7 +266,7 @@ struct TestListener;
 impl ParseTreeListener for TestListener{}
 impl TListener for TestListener{
 	fn exit_Call(&mut self, ctx: &CallContext) {
-		println!("{} {}",ctx.e().get_start().get_text(),ctx.eList().to_string(None,None));
+		println!("{} {}",ctx.e().unwrap().get_start().get_text(),ctx.eList().unwrap().to_string(None,None));
 	}
 	fn exit_Int(&mut self, ctx: &IntContext){
 		println!("{}",ctx.INT().unwrap().symbol.get_text());
@@ -301,4 +301,4 @@ Invoke_pred(v) ::= <<recog.pred(<v>)>>
 
 ContextRuleFunction(ctx, rule) ::= "<ctx>.<rule>.as_ref().unwrap()"
 StringType() ::= "String"
-ContextMember(ctx, subctx, member) ::= "<ctx>.<subctx>.get_<member>()"
+ContextMember(ctx, subctx, member) ::= "<ctx>.<subctx>.unwrap().get_<member>()"
