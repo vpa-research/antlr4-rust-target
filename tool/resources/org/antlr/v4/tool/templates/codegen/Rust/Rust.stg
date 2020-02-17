@@ -817,14 +817,14 @@ fn <t.name>_all(&self) -> Vec\<Rc\<TerminalNode> >  where Self:Sized{
 	self.children_of_type()
 }>>
 ContextTokenListIndexedGetterDecl(t)  ::= <<
-/// Retrieves 'i's TerminalNode corresponding to token <t.name> starting from 0.
+/// Retrieves 'i's TerminalNode corresponding to token <t.name>, starting from 0.
 /// Returns `None` if number of children corresponding to token <t.name> is less or equal than `i`.
 fn <t.name>(&self, i: usize) -> Option\<Rc\<TerminalNode> > where Self:Sized{
 	self.get_token(<t.name>, i)
 }
 >>
 ContextRuleGetterDecl(r)       ::= <<
-fn <r.name>(&self) -> Rc\<<r.ctxName>All> where Self:Sized{
+fn <r.name>(&self) -> Option\<Rc\<<r.ctxName>All>\> where Self:Sized{
 	self.child_of_type(0)
 }
 >>
@@ -834,7 +834,7 @@ fn <r.name>_all(&self) ->  Vec\<Rc\<<r.ctxName>All>\> where Self:Sized{
 }
 >>
 ContextRuleListIndexedGetterDecl(r)   ::= <<
-fn <r.name>(&self, i: usize) -> Rc\<<r.ctxName>All> where Self:Sized{
+fn <r.name>(&self, i: usize) -> Option\<Rc\<<r.ctxName>All>\> where Self:Sized{
 	self.child_of_type(i)
 }
 >>
