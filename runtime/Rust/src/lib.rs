@@ -9,6 +9,7 @@
 #![feature(specialization)]
 #![feature(coerce_unsized)]
 #![feature(unsize)]
+#![feature(associated_type_defaults)]
 #![warn(rust_2018_idioms)]
 #![warn(missing_docs)] // warn if there is missing docs
 #![warn(missing_debug_implementations)]
@@ -30,57 +31,103 @@
 //!
 //! [ANTLR4]: https://github.com/antlr/antlr4
 
+// To anyone going to change this code in the future:
+// Architecture notes:
+// todo
+//
+
 #[macro_use]
 extern crate lazy_static;
-//extern crate uuid;
 
+#[doc(hidden)]
+pub use lazy_static::lazy_static;
+
+#[doc(inline)]
+pub use error_strategy::{BailErrorStrategy, DefaultErrorStrategy, ErrorStrategy};
+#[doc(inline)]
+pub use input_stream::InputStream;
+// #[doc(inline)]
+// pub use input_stream::CodePointInputStream;
+#[doc(inline)]
+pub use lexer::{BaseLexer, Lexer};
+#[doc(inline)]
+pub use parser::{BaseParser, ListenerId, Parser};
+//extern crate uuid;
+#[doc(inline)]
 pub use prediction_context::PredictionContextCache;
 
-mod ll1_analyzer;
-pub mod common_token_factory;
-pub mod recognizer;
-pub mod int_stream;
-pub mod lexer_action;
-pub mod atn_simulator;
 pub mod atn_config;
+pub mod atn_simulator;
+pub mod int_stream;
+mod lexer_action;
+mod ll1_analyzer;
+pub mod recognizer;
+pub mod token_factory;
 //pub mod tokenstream_rewriter;
-pub mod semantic_context;
-pub mod dfa_state;
+#[doc(hidden)]
+pub mod atn_deserialization_options;
+#[doc(hidden)]
 pub mod atn_state;
+pub mod char_stream;
+#[doc(hidden)]
+pub mod dfa_state;
+pub mod interval_set;
 pub mod parser_rule_context;
 mod prediction_context;
-pub mod interval_set;
+#[doc(hidden)]
+pub mod semantic_context;
 pub mod token_source;
-pub mod atn_deserialization_options;
 pub mod token_stream;
-pub mod char_stream;
 //pub mod trace_listener;
+#[doc(hidden)]
+pub mod dfa;
+#[doc(hidden)]
 pub mod transition;
 pub mod tree;
-pub mod dfa;
 //pub mod file_stream;
-pub mod atn_deserializer;
-pub mod token;
-mod utils;
-pub mod trees;
-pub mod atn_config_set;
-pub mod error_listener;
-pub mod prediction_mode;
-pub mod input_stream;
-pub mod common_token_stream;
-pub mod lexer;
-mod dfa_serializer;
-pub mod lexer_atn_simulator;
+#[doc(hidden)]
 pub mod atn;
-pub mod errors;
+#[doc(hidden)]
+pub mod atn_config_set;
+#[doc(hidden)]
+pub mod atn_deserializer;
+pub mod common_token_stream;
+mod dfa_serializer;
+pub mod error_listener;
 pub mod error_strategy;
+pub mod errors;
+mod input_stream;
+pub mod lexer;
+#[doc(hidden)]
 pub mod lexer_action_executor;
+pub mod lexer_atn_simulator;
 pub mod parser;
 pub mod parser_atn_simulator;
+pub mod prediction_mode;
+pub mod token;
+pub mod trees;
+mod utils;
 //pub mod tokenstream_rewriter_test;
+#[doc(hidden)]
 pub mod atn_type;
 pub mod rule_context;
 pub mod vocabulary;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! type_id {
+    ($struct: tt) => {
+        unsafe impl antlr_rust::rule_context::Tid for $struct<'_> {
+            fn self_id(&self) -> TypeId { core::any::TypeId::of::<$struct<'static>>() }
+            fn id() -> TypeId
+            where
+                Self: Sized,
+            {
+                core::any::TypeId::of::<$struct<'static>>()
+            }
+        }
+    };
+}
 
 //#[cfg(test)]
 // tests are either integration tests in "tests" foulder or unit tests in some modules

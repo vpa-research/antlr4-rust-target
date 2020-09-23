@@ -1,29 +1,31 @@
 // Generated from CSV.g4 by ANTLR 4.8
 #![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(non_upper_case_globals)]
+#![allow(nonstandard_style)]
 #![allow(unused_imports)]
-
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use std::sync::Arc;
-
 use antlr_rust::atn::ATN;
 use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::char_stream::CharStream;
-use antlr_rust::common_token_factory::TokenFactory;
 use antlr_rust::dfa::DFA;
 use antlr_rust::error_listener::ErrorListener;
+use antlr_rust::int_stream::IntStream;
 use antlr_rust::lexer::{BaseLexer, Lexer, LexerRecog};
 use antlr_rust::lexer_atn_simulator::{ILexerATNSimulator, LexerATNSimulator};
-use antlr_rust::parser_rule_context::{cast, LexerContext, ParserRuleContext};
-use antlr_rust::PredictionContextCache;
+use antlr_rust::parser_rule_context::{cast, BaseParserRuleContext, ParserRuleContext};
 use antlr_rust::recognizer::{Actions, Recognizer};
-use antlr_rust::rule_context::BaseRuleContext;
+use antlr_rust::rule_context::{BaseRuleContext, EmptyContext, EmptyCustomRuleContext};
 use antlr_rust::token::*;
+use antlr_rust::token_factory::{CommonTokenFactory, TokenAware, TokenFactory};
 use antlr_rust::token_source::TokenSource;
 use antlr_rust::vocabulary::{Vocabulary, VocabularyImpl};
+use antlr_rust::PredictionContextCache;
+
+use antlr_rust::lazy_static;
+
+use std::cell::RefCell;
+use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub const T__0: isize = 1;
 pub const T__1: isize = 2;
@@ -31,154 +33,150 @@ pub const T__2: isize = 3;
 pub const WS: isize = 4;
 pub const TEXT: isize = 5;
 pub const STRING: isize = 6;
-pub const channelNames: [&'static str; 0 + 2] = [
-	"DEFAULT_TOKEN_CHANNEL", "HIDDEN"
-];
+pub const channelNames: [&'static str; 0 + 2] = ["DEFAULT_TOKEN_CHANNEL", "HIDDEN"];
 
-pub const modeNames: [&'static str; 1] = [
-	"DEFAULT_MODE"
-];
+pub const modeNames: [&'static str; 1] = ["DEFAULT_MODE"];
 
-pub const ruleNames: [&'static str; 6] = [
-	"T__0", "T__1", "T__2", "WS", "TEXT", "STRING"
-];
+pub const ruleNames: [&'static str; 6] = ["T__0", "T__1", "T__2", "WS", "TEXT", "STRING"];
 
-
-pub const _LITERAL_NAMES: [Option<&'static str>; 4] = [
-	None, Some("','"), Some("'\r'"), Some("'\n'")
-];
+pub const _LITERAL_NAMES: [Option<&'static str>; 4] =
+    [None, Some("','"), Some("'\r'"), Some("'\n'")];
 pub const _SYMBOLIC_NAMES: [Option<&'static str>; 7] = [
-	None, None, None, None, Some("WS"), Some("TEXT"), Some("STRING")
+    None,
+    None,
+    None,
+    None,
+    Some("WS"),
+    Some("TEXT"),
+    Some("STRING"),
 ];
 lazy_static! {
-	    static ref _shared_context_cache: Arc<PredictionContextCache> = Arc::new(PredictionContextCache::new());
-		static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(_LITERAL_NAMES.iter(), _SYMBOLIC_NAMES.iter(), None));
-	}
-
-
-pub struct CSVLexer {
-	base: BaseLexer<CSVLexerActions>,
-//	static { RuntimeMetaData.checkVersion("4.8", RuntimeMetaData.VERSION); }
+    static ref _shared_context_cache: Arc<PredictionContextCache> =
+        Arc::new(PredictionContextCache::new());
+    static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(
+        _LITERAL_NAMES.iter(),
+        _SYMBOLIC_NAMES.iter(),
+        None
+    ));
 }
 
-impl Deref for CSVLexer {
-	type Target = BaseLexer<CSVLexerActions>;
+pub type LexerContext<'input> =
+    BaseParserRuleContext<'input, EmptyCustomRuleContext<'input, LocalTokenFactory<'input>>>;
 
-	fn deref(&self) -> &Self::Target {
-		&self.base
-	}
+pub type LocalTokenFactory<'input> = antlr_rust::token_factory::ArenaCommonFactory<'input>;
+
+type From<'a> = <LocalTokenFactory<'a> as TokenFactory<'a>>::From;
+
+pub struct CSVLexer<'input, Input: CharStream<From<'input>>> {
+    base: BaseLexer<'input, CSVLexerActions, Input, LocalTokenFactory<'input>>,
+    //	static { RuntimeMetaData.checkVersion("4.8", RuntimeMetaData.VERSION); }
 }
 
-impl DerefMut for CSVLexer {
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.base
-	}
+impl<'input, Input: CharStream<From<'input>>> Deref for CSVLexer<'input, Input> {
+    type Target = BaseLexer<'input, CSVLexerActions, Input, LocalTokenFactory<'input>>;
+
+    fn deref(&self) -> &Self::Target { &self.base }
 }
 
+impl<'input, Input: CharStream<From<'input>>> DerefMut for CSVLexer<'input, Input> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.base }
+}
 
-impl CSVLexer {
-    fn get_rule_names(&self) -> &'static [&'static str] {
-        &ruleNames
+impl<'input, Input: CharStream<From<'input>>> CSVLexer<'input, Input> {
+    fn get_rule_names(&self) -> &'static [&'static str] { &ruleNames }
+    fn get_literal_names(&self) -> &[Option<&str>] { &_LITERAL_NAMES }
+
+    fn get_symbolic_names(&self) -> &[Option<&str>] { &_SYMBOLIC_NAMES }
+
+    fn get_grammar_file_name(&self) -> &'static str { "CSVLexer.g4" }
+
+    pub fn new_with_token_factory(
+        input: Box<Input>,
+        tf: &'input LocalTokenFactory<'input>,
+    ) -> Self {
+        antlr_rust::recognizer::check_version("0", "2");
+        Self {
+            base: BaseLexer::new_base_lexer(
+                input,
+                LexerATNSimulator::new_lexer_atnsimulator(
+                    _ATN.clone(),
+                    _decision_to_DFA.clone(),
+                    _shared_context_cache.clone(),
+                ),
+                CSVLexerActions {},
+                tf,
+            ),
+        }
     }
-    fn get_literal_names(&self) -> &[Option<&str>] {
-        &_LITERAL_NAMES
+}
+
+impl<'input, Input: CharStream<From<'input>>> CSVLexer<'input, Input>
+where
+    &'input LocalTokenFactory<'input>: Default,
+{
+    pub fn new(input: Box<Input>) -> Self {
+        CSVLexer::new_with_token_factory(input, <&LocalTokenFactory<'input> as Default>::default())
     }
-
-    fn get_symbolic_names(&self) -> &[Option<&str>] {
-        &_SYMBOLIC_NAMES
-    }
-
-    fn add_error_listener(&mut self, _listener: Box<dyn ErrorListener>) {
-        self.base.add_error_listener(_listener);
-	}
-
-	fn remove_error_listeners(&mut self) {
-		self.base.remove_error_listeners()
-	}
-
-	fn get_grammar_file_name(&self) -> &'static str {
-		"CSVLexer.g4"
-	}
-
-	pub fn new(input: Box<dyn CharStream>) -> Self {
-		antlr_rust::recognizer::check_version("0", "1");
-		Self {
-			base: BaseLexer::new_base_lexer(
-				input,
-				LexerATNSimulator::new_lexer_atnsimulator(
-					_ATN.clone(),
-					_decision_to_DFA.clone(),
-					_shared_context_cache.clone(),
-				),
-				Box::new(CSVLexerActions {}),
-			)
-		}
-	}
 }
 
 pub struct CSVLexerActions {}
 
 impl CSVLexerActions {}
 
-impl LexerRecog for CSVLexerActions {}
-
-impl Recognizer for CSVLexerActions {}
-
-impl Actions for CSVLexerActions {
-	type Recog = BaseLexer<CSVLexerActions>;
+impl<'input, Input: CharStream<From<'input>>>
+    Actions<'input, BaseLexer<'input, CSVLexerActions, Input, LocalTokenFactory<'input>>>
+    for CSVLexerActions
+{
 }
 
-impl CSVLexerActions {}
+impl<'input, Input: CharStream<From<'input>>> CSVLexer<'input, Input> {}
 
-impl TokenSource for CSVLexer {
-	fn next_token(&mut self) -> Box<dyn Token> {
-		self.base.next_token()
-	}
-
-	fn get_line(&self) -> isize {
-		self.base.get_line()
-	}
-
-	fn get_char_position_in_line(&self) -> isize {
-		self.base.get_char_position_in_line()
-	}
-
-	fn get_input_stream(&mut self) -> &mut dyn CharStream {
-		self.base.get_input_stream()
-	}
-
-	fn get_source_name(&self) -> String {
-		self.base.get_source_name()
-	}
-
-	fn get_token_factory(&self) -> &dyn TokenFactory {
-		self.base.get_token_factory()
-	}
+impl<'input, Input: CharStream<From<'input>>>
+    LexerRecog<'input, BaseLexer<'input, CSVLexerActions, Input, LocalTokenFactory<'input>>>
+    for CSVLexerActions
+{
+}
+impl<'input> TokenAware<'input> for CSVLexerActions {
+    type TF = LocalTokenFactory<'input>;
 }
 
+impl<'input, Input: CharStream<From<'input>>> TokenAware<'input> for CSVLexer<'input, Input> {
+    type TF = LocalTokenFactory<'input>;
+}
 
+impl<'input, Input: CharStream<From<'input>>> TokenSource<'input> for CSVLexer<'input, Input> {
+    fn next_token(&mut self) -> <Self::TF as TokenFactory<'input>>::Tok { self.base.next_token() }
+
+    fn get_line(&self) -> isize { self.base.get_line() }
+
+    fn get_char_position_in_line(&self) -> isize { self.base.get_char_position_in_line() }
+
+    fn get_input_stream(&mut self) -> Option<&mut dyn IntStream> { self.base.get_input_stream() }
+
+    fn get_source_name(&self) -> String { self.base.get_source_name() }
+
+    fn get_token_factory(&self) -> &'input Self::TF { self.base.get_token_factory() }
+}
 
 lazy_static! {
-	    static ref _ATN: Arc<ATN> =
-	        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
-	    static ref _decision_to_DFA: Arc<Vec<DFA>> = {
-	        let mut dfa = Vec::new();
-	        let size = _ATN.decision_to_state.len();
-	        for i in 0..size {
-	            dfa.push(DFA::new(
-	                _ATN.clone(),
-	                _ATN.get_decision_state(i),
-	                i as isize,
-	            ))
-	        }
-	        Arc::new(dfa)
-	    };
-	}
-
-
+    static ref _ATN: Arc<ATN> =
+        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
+    static ref _decision_to_DFA: Arc<Vec<DFA>> = {
+        let mut dfa = Vec::new();
+        let size = _ATN.decision_to_state.len();
+        for i in 0..size {
+            dfa.push(DFA::new(
+                _ATN.clone(),
+                _ATN.get_decision_state(i),
+                i as isize,
+            ))
+        }
+        Arc::new(dfa)
+    };
+}
 
 const _serializedATN: &'static str =
-	"\x03\u{608b}\u{a72a}\u{8133}\u{b9ed}\u{417c}\u{3be7}\u{7786}\u{5964}\x02\
+    "\x03\u{608b}\u{a72a}\u{8133}\u{b9ed}\u{417c}\u{3be7}\u{7786}\u{5964}\x02\
 		\x08\x2c\x08\x01\x04\x02\x09\x02\x04\x03\x09\x03\x04\x04\x09\x04\x04\x05\
 		\x09\x05\x04\x06\x09\x06\x04\x07\x09\x07\x03\x02\x03\x02\x03\x03\x03\x03\
 		\x03\x04\x03\x04\x03\x05\x06\x05\x17\x0a\x05\x0d\x05\x0e\x05\x18\x03\x05\
@@ -202,4 +200,3 @@ const _serializedATN: &'static str =
 		\x26\x29\x03\x02\x02\x02\x27\x25\x03\x02\x02\x02\x27\x28\x03\x02\x02\x02\
 		\x28\x2a\x03\x02\x02\x02\x29\x27\x03\x02\x02\x02\x2a\x2b\x07\x24\x02\x02\
 		\x2b\x0e\x03\x02\x02\x02\x07\x02\x18\x1f\x25\x27\x03\x02\x03\x02";
-
