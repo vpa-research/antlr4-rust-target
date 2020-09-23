@@ -1,9 +1,13 @@
 grammar CSV;
 
+@tokenfactory{
+pub type LocalTokenFactory<'input> = antlr_rust::token_factory::ArenaCommonFactory<'input>;
+}
+
 csvFile: hdr row+ ;
 hdr : row ;
 
-row : field (',' field)* '\r'? '\n' {println!("test");};
+row : field (',' field)* '\r'? '\n';
 
 field
     : TEXT

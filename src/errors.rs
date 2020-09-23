@@ -1,14 +1,16 @@
+use std::borrow::Borrow;
 use std::error::Error;
-use std::fmt::{Debug, Display};
 use std::fmt;
 use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 use std::ops::Deref;
 use std::rc::Rc;
 
 use crate::atn_simulator::IATNSimulator;
 use crate::interval_set::IntervalSet;
-use crate::parser::Parser;
+use crate::parser::{Parser, ParserNodeType};
 use crate::parser_rule_context::ParserRuleContext;
+use crate::rule_context::states_stack;
 use crate::token::{OwningToken, Token};
 use crate::transition::PredicateTransition;
 use crate::transition::TransitionType::TRANSITION_PREDICATE;
@@ -18,7 +20,7 @@ use crate::transition::TransitionType::TRANSITION_PREDICATE;
 pub enum ANTLRError {
     /// Returned from Lexer when it fails to find matching token type for current input
     ///
-    /// Usually Lexers contain rule that captures all invalid tokens like:
+    /// Usually Lexers contain last rule that captures all invalid tokens like:
     /// ```text
     /// ERROR_TOKEN: . ;
     /// ```
@@ -54,7 +56,9 @@ pub enum ANTLRError {
 impl Clone for ANTLRError {
     fn clone(&self) -> Self {
         match self {
-            ANTLRError::LexerNoAltError { start_index } => ANTLRError::LexerNoAltError { start_index: *start_index },
+            ANTLRError::LexerNoAltError { start_index } => ANTLRError::LexerNoAltError {
+                start_index: *start_index,
+            },
             ANTLRError::NoAltError(e) => ANTLRError::NoAltError(e.clone()),
             ANTLRError::InputMismatchError(e) => ANTLRError::InputMismatchError(e.clone()),
             ANTLRError::PredicateError(e) => ANTLRError::PredicateError(e.clone()),
@@ -66,9 +70,7 @@ impl Clone for ANTLRError {
 }
 
 impl Display for ANTLRError {
-    fn fmt(&self, _f: &mut Formatter) -> fmt::Result {
-        <Self as Debug>::fmt(self, _f)
-    }
+    fn fmt(&self, _f: &mut Formatter) -> fmt::Result { <Self as Debug>::fmt(self, _f) }
 }
 
 impl Error for ANTLRError {
@@ -76,18 +78,18 @@ impl Error for ANTLRError {
         match self {
             ANTLRError::FallThrough(x) => Some(x.as_ref()),
             ANTLRError::OtherError(x) => Some(x.as_ref()),
-            _ => None
+            _ => None,
         }
     }
 }
 
 impl RecognitionError for ANTLRError {
-    fn get_offending_token(&self) -> Option<&dyn Token> {
+    fn get_offending_token(&self) -> Option<&OwningToken> {
         Some(match self {
             ANTLRError::NoAltError(e) => &e.base.offending_token,
             ANTLRError::InputMismatchError(e) => &e.base.offending_token,
             ANTLRError::PredicateError(e) => &e.base.offending_token,
-            _ => return None
+            _ => return None,
         })
     }
 }
@@ -100,9 +102,9 @@ impl RecognitionError for ANTLRError {
 //}
 
 pub trait RecognitionError: Error {
-    fn get_offending_token(&self) -> Option<&dyn Token>;
+    fn get_offending_token(&self) -> Option<&OwningToken>;
     fn get_message(&self) -> String { self.to_string() }
-//    fn get_input_stream(&self) -> &IntStream;
+    //    fn get_input_stream(&self) -> &IntStream;
 }
 
 #[derive(Debug, Clone)]
@@ -111,22 +113,25 @@ pub struct BaseRecognitionError {
     //    recognizer: Box<Recognizer>,
     pub offending_token: OwningToken,
     pub offending_state: isize,
-    ctx: Rc<dyn ParserRuleContext>
-    //    input: Box<IntStream>,
+    states_stack: Vec<isize>, // ctx: Rc<dyn ParserRuleContext>
+                              //    input: Box<IntStream>
 }
 
 impl BaseRecognitionError {
-    pub fn get_expected_tokens(&self, recognizer: &dyn Parser) -> IntervalSet {
-        recognizer.get_interpreter().atn()
-            .get_expected_tokens(self.offending_state, &self.ctx)
+    pub fn get_expected_tokens<'a, T: Parser<'a>>(&self, recognizer: &T) -> IntervalSet {
+        recognizer
+            .get_interpreter()
+            .atn()
+            .get_expected_tokens(self.offending_state, self.states_stack.iter().copied())
     }
 
-    fn new(recog: &mut dyn Parser) -> BaseRecognitionError {
+    fn new<'a, T: Parser<'a>>(recog: &mut T) -> BaseRecognitionError {
         BaseRecognitionError {
             message: "".to_string(),
-            offending_token: recog.get_current_token().to_owned(),
+            offending_token: recog.get_current_token().borrow().to_owned(),
             offending_state: recog.get_state(),
-            ctx: recog.get_parser_rule_context().clone()
+            // ctx: recog.get_parser_rule_context().clone(),
+            states_stack: states_stack(recog.get_parser_rule_context().clone()).collect(),
         }
     }
 }
@@ -142,37 +147,41 @@ pub struct LexerNoViableAltError {
 pub struct NoViableAltError {
     pub base: BaseRecognitionError,
     pub start_token: OwningToken,
-//    ctx: Rc<dyn ParserRuleContext>,
+    //    ctx: Rc<dyn ParserRuleContext>,
     //    dead_end_configs: BaseATNConfigSet,
 }
 
 impl NoViableAltError {
-    pub fn new(recog: &mut dyn Parser) -> NoViableAltError {
+    pub fn new<'a, T: Parser<'a>>(recog: &mut T) -> NoViableAltError {
         Self {
             base: BaseRecognitionError {
                 message: "".to_string(),
-                offending_token: recog.get_current_token().to_owned(),
+                offending_token: recog.get_current_token().borrow().to_owned(),
                 offending_state: recog.get_state(),
-                ctx: recog.get_parser_rule_context().clone(),
+                // ctx: recog.get_parser_rule_context().clone(),
+                states_stack: states_stack(recog.get_parser_rule_context().clone()).collect(),
             },
-            start_token: recog.get_current_token().to_owned(),
-//            ctx: recog.get_parser_rule_context().clone()
+            start_token: recog.get_current_token().borrow().to_owned(),
+            //            ctx: recog.get_parser_rule_context().clone()
         }
     }
-    pub fn new_full(recog: &mut dyn Parser, start_token: OwningToken, offending_token: OwningToken) -> NoViableAltError {
+    pub fn new_full<'a, T: Parser<'a>>(
+        recog: &mut T,
+        start_token: OwningToken,
+        offending_token: OwningToken,
+    ) -> NoViableAltError {
         Self {
             base: BaseRecognitionError {
                 message: "".to_string(),
                 offending_token,
                 offending_state: recog.get_state(),
-                ctx: recog.get_parser_rule_context().clone(),
+                states_stack: states_stack(recog.get_parser_rule_context().clone()).collect(), // ctx: recog.get_parser_rule_context().clone(),
             },
             start_token,
-//            ctx
+            //            ctx
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct InputMisMatchError {
@@ -180,16 +189,21 @@ pub struct InputMisMatchError {
 }
 
 impl InputMisMatchError {
-    pub fn new(recognizer: &mut dyn Parser) -> InputMisMatchError {
+    pub fn new<'a, T: Parser<'a>>(recognizer: &mut T) -> InputMisMatchError {
         InputMisMatchError {
             base: BaseRecognitionError::new(recognizer),
         }
     }
 
-    pub fn with_state(recognizer: &mut dyn Parser, offending_state: isize, ctx: Rc<dyn ParserRuleContext>) -> InputMisMatchError {
+    pub fn with_state<'a, T: Parser<'a>>(
+        recognizer: &mut T,
+        offending_state: isize,
+        ctx: Rc<<T::Node as ParserNodeType<'a>>::Type>,
+    ) -> InputMisMatchError {
         let mut a = Self::new(recognizer);
-        a.base.ctx = ctx;
+        // a.base.ctx = ctx;
         a.base.offending_state = offending_state;
+        a.base.states_stack = states_stack(ctx).collect();
         a
     }
 }
@@ -205,11 +219,15 @@ pub struct FailedPredicateError {
 }
 
 impl FailedPredicateError {
-    pub fn new(recog: &mut dyn Parser, predicate: Option<String>, msg: Option<String>) -> ANTLRError {
-
-        let tr = recog.get_interpreter().atn()
-            .states[recog.get_state() as usize]
-            .get_transitions().first().unwrap();
+    pub fn new<'a, T: Parser<'a>>(
+        recog: &mut T,
+        predicate: Option<String>,
+        msg: Option<String>,
+    ) -> ANTLRError {
+        let tr = recog.get_interpreter().atn().states[recog.get_state() as usize]
+            .get_transitions()
+            .first()
+            .unwrap();
         let (rule_index, predicate_index) = if tr.get_serialization_type() == TRANSITION_PREDICATE {
             let pr = tr.deref().cast::<PredicateTransition>();
             (pr.rule_index, pr.pred_index)
@@ -219,10 +237,15 @@ impl FailedPredicateError {
 
         ANTLRError::PredicateError(FailedPredicateError {
             base: BaseRecognitionError {
-                message: msg.unwrap_or_else(|| format!("failed predicate: {}", predicate.as_deref().unwrap_or("None"))),
-                offending_token: recog.get_current_token().to_owned(),
+                message: msg.unwrap_or_else(|| {
+                    format!(
+                        "failed predicate: {}",
+                        predicate.as_deref().unwrap_or("None")
+                    )
+                }),
+                offending_token: recog.get_current_token().borrow().to_owned(),
                 offending_state: recog.get_state(),
-                ctx: recog.get_parser_rule_context().clone()
+                states_stack: states_stack(recog.get_parser_rule_context().clone()).collect(), // ctx: recog.get_parser_rule_context().clone()
             },
             rule_index,
             predicate_index,

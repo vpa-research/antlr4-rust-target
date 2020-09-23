@@ -8,9 +8,11 @@ use crate::dfa::ScopeExt;
 use crate::interval_set::IntervalSet;
 use crate::lexer_action::LexerAction;
 use crate::ll1_analyzer::LL1Analyzer;
+use crate::parser::ParserNodeType;
 use crate::parser_rule_context::ParserRuleContext;
-use crate::rule_context::RuleContext;
+use crate::rule_context::{EmptyContextType, RuleContext};
 use crate::token::{TOKEN_EOF, TOKEN_EPSILON};
+use crate::token_factory::{CommonTokenFactory, TokenFactory};
 use crate::transition::RuleTransition;
 
 pub const INVALID_ALT: isize = 0;
@@ -58,11 +60,8 @@ impl ATN {
     ///rule.
     pub fn next_tokens<'a>(&self, s: &'a dyn ATNState) -> &'a IntervalSet {
         s.get_next_tokens_within_rule().get_or_init(|| {
-            self.next_tokens_in_ctx(s, None)
-                .modify_with(|r| {
-                    r.read_only = true
-                }
-                )
+            self.next_tokens_in_ctx::<EmptyContextType<CommonTokenFactory>>(s, None)
+                .modify_with(|r| r.read_only = true)
         })
     }
 
@@ -70,9 +69,13 @@ impl ATN {
     /// If `ctx` is null, the set of tokens will not include what can follow
     /// the rule surrounding `s`. In other words, the set will be
     /// restricted to tokens reachable staying within `s`'s rule.
-    pub fn next_tokens_in_ctx(&self, s: &dyn ATNState, _ctx: Option<&dyn ParserRuleContext>) -> IntervalSet {
+    pub fn next_tokens_in_ctx<'a, Ctx: ParserNodeType<'a>>(
+        &self,
+        s: &dyn ATNState,
+        _ctx: Option<&Ctx::Type>,
+    ) -> IntervalSet {
         let analyzer = LL1Analyzer::new(self);
-        analyzer.look(s, None, _ctx)
+        analyzer.look::<'a, Ctx>(s, None, _ctx)
     }
 
     pub(crate) fn add_state(&mut self, state: Box<dyn ATNState>) {
@@ -80,13 +83,9 @@ impl ATN {
         self.states.push(state)
     }
 
-    fn remove_state(&self, _state: ATNStateRef) {
-        unimplemented!()
-    }
+    fn remove_state(&self, _state: ATNStateRef) { unimplemented!() }
 
-    fn define_decision_state(&self, _s: ATNStateRef) -> isize {
-        unimplemented!()
-    }
+    fn define_decision_state(&self, _s: ATNStateRef) -> isize { unimplemented!() }
 
     pub fn get_decision_state(&self, decision: usize) -> ATNStateRef {
         self.decision_to_state[decision]
@@ -122,9 +121,13 @@ impl ATN {
     /// @param context the full parse context
     /// @return The set of potentially valid input symbols which could follow the
     /// specified state in the specified context.
-    /// @throws IllegalArgumentException if the ATN does not contain a state with
+    /// Panics if the ATN does not contain a state with
     /// number {@code stateNumber}
-    pub fn get_expected_tokens(&self, state_number: isize, _ctx: &Rc<dyn ParserRuleContext>) -> IntervalSet {
+    pub fn get_expected_tokens(
+        &self,
+        state_number: isize,
+        states_stack: impl Iterator<Item = isize>, // _ctx: &Rc<Ctx::Type>,
+    ) -> IntervalSet {
         let s = self.states[state_number as usize].as_ref();
         let mut following = self.next_tokens(s);
         if !following.contains(TOKEN_EPSILON) {
@@ -133,18 +136,20 @@ impl ATN {
         let mut expected = IntervalSet::new();
         expected.add_set(&following);
         expected.remove_one(TOKEN_EPSILON);
-        let mut ctx = Some(Rc::clone(_ctx));
+        // let mut ctx = Some(Rc::clone(_ctx));
 
-        while let Some(c) = ctx {
-            if c.get_invoking_state() < 0 || !following.contains(TOKEN_EPSILON) { break }
+        for state in states_stack {
+            if !following.contains(TOKEN_EPSILON) {
+                break;
+            }
 
-            let invoking_state = self.states[c.get_invoking_state() as usize].as_ref();
+            let invoking_state = self.states[state as usize].as_ref();
             let tr = invoking_state.get_transitions().first().unwrap().as_ref();
             let tr = tr.cast::<RuleTransition>();
             following = self.next_tokens(self.states[tr.follow_state].as_ref());
             expected.add_set(following);
             expected.remove_one(TOKEN_EPSILON);
-            ctx = c.get_parent_ctx();
+            // ctx = c.get_parent_ctx();
         }
 
         if following.contains(TOKEN_EPSILON) {

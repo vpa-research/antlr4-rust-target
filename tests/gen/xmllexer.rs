@@ -1,29 +1,31 @@
 // Generated from XMLLexer.g4 by ANTLR 4.8
 #![allow(dead_code)]
-#![allow(non_snake_case)]
-#![allow(non_upper_case_globals)]
+#![allow(nonstandard_style)]
 #![allow(unused_imports)]
-
-use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-use std::sync::Arc;
-
 use antlr_rust::atn::ATN;
 use antlr_rust::atn_deserializer::ATNDeserializer;
 use antlr_rust::char_stream::CharStream;
-use antlr_rust::common_token_factory::TokenFactory;
 use antlr_rust::dfa::DFA;
 use antlr_rust::error_listener::ErrorListener;
+use antlr_rust::int_stream::IntStream;
 use antlr_rust::lexer::{BaseLexer, Lexer, LexerRecog};
 use antlr_rust::lexer_atn_simulator::{ILexerATNSimulator, LexerATNSimulator};
-use antlr_rust::parser_rule_context::{cast, LexerContext, ParserRuleContext};
-use antlr_rust::PredictionContextCache;
+use antlr_rust::parser_rule_context::{cast, BaseParserRuleContext, ParserRuleContext};
 use antlr_rust::recognizer::{Actions, Recognizer};
-use antlr_rust::rule_context::BaseRuleContext;
+use antlr_rust::rule_context::{BaseRuleContext, EmptyContext, EmptyCustomRuleContext};
 use antlr_rust::token::*;
+use antlr_rust::token_factory::{CommonTokenFactory, TokenAware, TokenFactory};
 use antlr_rust::token_source::TokenSource;
 use antlr_rust::vocabulary::{Vocabulary, VocabularyImpl};
+use antlr_rust::PredictionContextCache;
+
+use antlr_rust::lazy_static;
+
+use std::cell::RefCell;
+use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub const COMMENT: isize = 1;
 pub const CDATA: isize = 2;
@@ -45,84 +47,119 @@ pub const S: isize = 17;
 pub const PI: isize = 18;
 pub const INSIDE: usize = 1;
 pub const PROC_INSTR: usize = 2;
-pub const channelNames: [&'static str; 0 + 2] = [
-    "DEFAULT_TOKEN_CHANNEL", "HIDDEN"
-];
+pub const channelNames: [&'static str; 0 + 2] = ["DEFAULT_TOKEN_CHANNEL", "HIDDEN"];
 
-pub const modeNames: [&'static str; 3] = [
-    "DEFAULT_MODE", "INSIDE", "PROC_INSTR"
-];
+pub const modeNames: [&'static str; 3] = ["DEFAULT_MODE", "INSIDE", "PROC_INSTR"];
 
 pub const ruleNames: [&'static str; 24] = [
-    "COMMENT", "CDATA", "DTD", "EntityRef", "CharRef", "SEA_WS", "OPEN", "XMLDeclOpen",
-    "SPECIAL_OPEN", "TEXT", "CLOSE", "SPECIAL_CLOSE", "SLASH_CLOSE", "SLASH",
-    "EQUALS", "STRING", "Name", "S", "HEXDIGIT", "DIGIT", "NameChar", "NameStartChar",
-    "PI", "IGNORE"
+    "COMMENT",
+    "CDATA",
+    "DTD",
+    "EntityRef",
+    "CharRef",
+    "SEA_WS",
+    "OPEN",
+    "XMLDeclOpen",
+    "SPECIAL_OPEN",
+    "TEXT",
+    "CLOSE",
+    "SPECIAL_CLOSE",
+    "SLASH_CLOSE",
+    "SLASH",
+    "EQUALS",
+    "STRING",
+    "Name",
+    "S",
+    "HEXDIGIT",
+    "DIGIT",
+    "NameChar",
+    "NameStartChar",
+    "PI",
+    "IGNORE",
 ];
-
 
 pub const _LITERAL_NAMES: [Option<&'static str>; 15] = [
-    None, None, None, None, None, None, None, Some("'<'"), None, None, Some("'>'"),
-    None, Some("'/>'"), Some("'/'"), Some("'='")
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    Some("'<'"),
+    None,
+    None,
+    Some("'>'"),
+    None,
+    Some("'/>'"),
+    Some("'/'"),
+    Some("'='"),
 ];
 pub const _SYMBOLIC_NAMES: [Option<&'static str>; 19] = [
-    None, Some("COMMENT"), Some("CDATA"), Some("DTD"), Some("EntityRef"),
-    Some("CharRef"), Some("SEA_WS"), Some("OPEN"), Some("XMLDeclOpen"), Some("TEXT"),
-    Some("CLOSE"), Some("SPECIAL_CLOSE"), Some("SLASH_CLOSE"), Some("SLASH"),
-    Some("EQUALS"), Some("STRING"), Some("Name"), Some("S"), Some("PI")
+    None,
+    Some("COMMENT"),
+    Some("CDATA"),
+    Some("DTD"),
+    Some("EntityRef"),
+    Some("CharRef"),
+    Some("SEA_WS"),
+    Some("OPEN"),
+    Some("XMLDeclOpen"),
+    Some("TEXT"),
+    Some("CLOSE"),
+    Some("SPECIAL_CLOSE"),
+    Some("SLASH_CLOSE"),
+    Some("SLASH"),
+    Some("EQUALS"),
+    Some("STRING"),
+    Some("Name"),
+    Some("S"),
+    Some("PI"),
 ];
 lazy_static! {
-	    static ref _shared_context_cache: Arc<PredictionContextCache> = Arc::new(PredictionContextCache::new());
-		static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(_LITERAL_NAMES.iter(), _SYMBOLIC_NAMES.iter(), None));
-	}
-
-
-pub struct XMLLexer {
-    base: BaseLexer<XMLLexerActions>,
-//	static { RuntimeMetaData.checkVersion("4.8", RuntimeMetaData.VERSION); }
+    static ref _shared_context_cache: Arc<PredictionContextCache> =
+        Arc::new(PredictionContextCache::new());
+    static ref VOCABULARY: Box<dyn Vocabulary> = Box::new(VocabularyImpl::new(
+        _LITERAL_NAMES.iter(),
+        _SYMBOLIC_NAMES.iter(),
+        None
+    ));
 }
 
-impl Deref for XMLLexer {
-    type Target = BaseLexer<XMLLexerActions>;
+pub type LexerContext<'input> =
+    BaseParserRuleContext<'input, EmptyCustomRuleContext<'input, LocalTokenFactory<'input>>>;
+pub type LocalTokenFactory<'input> = CommonTokenFactory;
 
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
+type From<'a> = <LocalTokenFactory<'a> as TokenFactory<'a>>::From;
+
+pub struct XMLLexer<'input, Input: CharStream<From<'input>>> {
+    base: BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>,
+    //	static { RuntimeMetaData.checkVersion("4.8", RuntimeMetaData.VERSION); }
 }
 
-impl DerefMut for XMLLexer {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
+impl<'input, Input: CharStream<From<'input>>> Deref for XMLLexer<'input, Input> {
+    type Target = BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>;
+
+    fn deref(&self) -> &Self::Target { &self.base }
 }
 
+impl<'input, Input: CharStream<From<'input>>> DerefMut for XMLLexer<'input, Input> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.base }
+}
 
-impl XMLLexer {
-    fn get_rule_names(&self) -> &'static [&'static str] {
-        &ruleNames
-    }
-    fn get_literal_names(&self) -> &[Option<&str>] {
-        &_LITERAL_NAMES
-    }
+impl<'input, Input: CharStream<From<'input>>> XMLLexer<'input, Input> {
+    fn get_rule_names(&self) -> &'static [&'static str] { &ruleNames }
+    fn get_literal_names(&self) -> &[Option<&str>] { &_LITERAL_NAMES }
 
-    fn get_symbolic_names(&self) -> &[Option<&str>] {
-        &_SYMBOLIC_NAMES
-    }
+    fn get_symbolic_names(&self) -> &[Option<&str>] { &_SYMBOLIC_NAMES }
 
-    fn add_error_listener(&mut self, _listener: Box<dyn ErrorListener>) {
-        self.base.add_error_listener(_listener);
-    }
+    fn get_grammar_file_name(&self) -> &'static str { "XMLLexer.g4" }
 
-    fn remove_error_listeners(&mut self) {
-        self.base.remove_error_listeners()
-    }
-
-    fn get_grammar_file_name(&self) -> &'static str {
-        "XMLLexer.g4"
-    }
-
-    pub fn new(input: Box<dyn CharStream>) -> Self {
-        antlr_rust::recognizer::check_version("0", "1");
+    pub fn new_with_token_factory(
+        input: Box<Input>,
+        tf: &'input LocalTokenFactory<'input>,
+    ) -> Self {
+        antlr_rust::recognizer::check_version("0", "2");
         Self {
             base: BaseLexer::new_base_lexer(
                 input,
@@ -131,9 +168,19 @@ impl XMLLexer {
                     _decision_to_DFA.clone(),
                     _shared_context_cache.clone(),
                 ),
-                Box::new(XMLLexerActions {}),
-            )
+                XMLLexerActions {},
+                tf,
+            ),
         }
+    }
+}
+
+impl<'input, Input: CharStream<From<'input>>> XMLLexer<'input, Input>
+where
+    &'input LocalTokenFactory<'input>: Default,
+{
+    pub fn new(input: Box<Input>) -> Self {
+        XMLLexer::new_with_token_factory(input, <&LocalTokenFactory<'input> as Default>::default())
     }
 }
 
@@ -141,104 +188,111 @@ pub struct XMLLexerActions {}
 
 impl XMLLexerActions {}
 
-impl LexerRecog for XMLLexerActions {}
-
-impl Recognizer for XMLLexerActions {}
-
-impl Actions for XMLLexerActions {
-    type Recog = BaseLexer<XMLLexerActions>;
-
-    fn action(_localctx: &dyn ParserRuleContext, rule_index: isize, action_index: isize,
-              recog: &mut <Self as Actions>::Recog,
+impl<'input, Input: CharStream<From<'input>>>
+    Actions<'input, BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>>
+    for XMLLexerActions
+{
+    fn action(
+        _localctx: &EmptyContext<'input, LocalTokenFactory<'input>>,
+        rule_index: isize,
+        action_index: isize,
+        recog: &mut BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>,
     ) {
         match rule_index {
-            10 =>
-                Self::CLOSE_action(cast::<_, LexerContext>(_localctx), action_index, recog),
+            10 => XMLLexer::<'input>::CLOSE_action(
+                cast::<_, LexerContext<'input>>(_localctx),
+                action_index,
+                recog,
+            ),
             _ => {}
         }
     }
-    fn sempred(_localctx: &dyn ParserRuleContext, rule_index: isize, pred_index: isize,
-               recog: &mut <Self as Actions>::Recog,
+    fn sempred(
+        _localctx: &EmptyContext<'input, LocalTokenFactory<'input>>,
+        rule_index: isize,
+        pred_index: isize,
+        recog: &mut BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>,
     ) -> bool {
         match rule_index {
-            0 =>
-                Self::COMMENT_sempred(cast::<_, LexerContext>(_localctx), pred_index, recog),
-            _ => true
+            0 => XMLLexer::<'input>::COMMENT_sempred(
+                cast::<_, LexerContext<'input>>(_localctx),
+                pred_index,
+                recog,
+            ),
+            _ => true,
         }
     }
 }
 
-impl XMLLexerActions {
-    fn CLOSE_action(_localctx: &LexerContext, action_index: isize,
-                    recog: &mut <Self as Actions>::Recog,
+impl<'input, Input: CharStream<From<'input>>> XMLLexer<'input, Input> {
+    fn CLOSE_action(
+        _localctx: &LexerContext<'input>,
+        action_index: isize,
+        recog: &mut <Self as Deref>::Target,
     ) {
         match action_index {
             0 => {
                 recog.pop_mode();
-            },
+            }
 
             _ => {}
         }
     }
-
-    fn COMMENT_sempred(_localctx: &LexerContext, pred_index: isize,
-                       recog: &mut <Self as Actions>::Recog,
+    fn COMMENT_sempred(
+        _localctx: &LexerContext<'input>,
+        pred_index: isize,
+        recog: &mut <Self as Deref>::Target,
     ) -> bool {
         match pred_index {
-            0 => {
-                true
-            }
-            _ => true
+            0 => true,
+            _ => true,
         }
     }
 }
 
-impl TokenSource for XMLLexer {
-    fn next_token(&mut self) -> Box<dyn Token> {
-        self.base.next_token()
-    }
-
-    fn get_line(&self) -> isize {
-        self.base.get_line()
-    }
-
-    fn get_char_position_in_line(&self) -> isize {
-        self.base.get_char_position_in_line()
-    }
-
-    fn get_input_stream(&mut self) -> &mut dyn CharStream {
-        self.base.get_input_stream()
-    }
-
-    fn get_source_name(&self) -> String {
-        self.base.get_source_name()
-    }
-
-    fn get_token_factory(&self) -> &dyn TokenFactory {
-        self.base.get_token_factory()
-    }
+impl<'input, Input: CharStream<From<'input>>>
+    LexerRecog<'input, BaseLexer<'input, XMLLexerActions, Input, LocalTokenFactory<'input>>>
+    for XMLLexerActions
+{
+}
+impl<'input> TokenAware<'input> for XMLLexerActions {
+    type TF = LocalTokenFactory<'input>;
 }
 
+impl<'input, Input: CharStream<From<'input>>> TokenAware<'input> for XMLLexer<'input, Input> {
+    type TF = LocalTokenFactory<'input>;
+}
 
+impl<'input, Input: CharStream<From<'input>>> TokenSource<'input> for XMLLexer<'input, Input> {
+    fn next_token(&mut self) -> <Self::TF as TokenFactory<'input>>::Tok { self.base.next_token() }
+
+    fn get_line(&self) -> isize { self.base.get_line() }
+
+    fn get_char_position_in_line(&self) -> isize { self.base.get_char_position_in_line() }
+
+    fn get_input_stream(&mut self) -> Option<&mut dyn IntStream> { self.base.get_input_stream() }
+
+    fn get_source_name(&self) -> String { self.base.get_source_name() }
+
+    fn get_token_factory(&self) -> &'input Self::TF { self.base.get_token_factory() }
+}
 
 lazy_static! {
-	    static ref _ATN: Arc<ATN> =
-	        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
-	    static ref _decision_to_DFA: Arc<Vec<DFA>> = {
-	        let mut dfa = Vec::new();
-	        let size = _ATN.decision_to_state.len();
-	        for i in 0..size {
-	            dfa.push(DFA::new(
-	                _ATN.clone(),
-	                _ATN.get_decision_state(i),
-	                i as isize,
-	            ))
-	        }
-	        Arc::new(dfa)
-	    };
-	}
-
-
+    static ref _ATN: Arc<ATN> =
+        Arc::new(ATNDeserializer::new(None).deserialize(_serializedATN.chars()));
+    static ref _decision_to_DFA: Arc<Vec<DFA>> = {
+        let mut dfa = Vec::new();
+        let size = _ATN.decision_to_state.len();
+        for i in 0..size {
+            dfa.push(DFA::new(
+                _ATN.clone(),
+                _ATN.get_decision_state(i),
+                i as isize,
+            ))
+        }
+        Arc::new(dfa)
+    };
+}
 
 const _serializedATN: &'static str =
     "\x03\u{608b}\u{a72a}\u{8133}\u{b9ed}\u{417c}\u{3be7}\u{7786}\u{5964}\x02\
@@ -367,4 +421,3 @@ const _serializedATN: &'static str =
 		\x34\x03\x02\x02\x02\x14\x02\x03\x04\x3d\x53\x60\x71\x7c\u{80}\u{84}\u{87}\
 		\u{a2}\u{b9}\u{c1}\u{c5}\u{cb}\u{da}\u{dd}\x08\x08\x02\x02\x07\x03\x02\
 		\x05\x02\x02\x07\x04\x02\x03\x0c\x02\x06\x02\x02";
-

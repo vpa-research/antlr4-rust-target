@@ -5,14 +5,13 @@
 extern crate lazy_static;
 extern crate test;
 
-
 mod gen {
     use test::Bencher;
 
     use antlr_rust::common_token_stream::CommonTokenStream;
-    use antlr_rust::input_stream::InputStream;
+    use antlr_rust::InputStream;
 
-// use crate::gen::perflexer::PerfLexer;
+    // use crate::gen::perflexer::PerfLexer;
     // use crate::gen::perfparser::PerfParser;
     // mod perflexer;
     // mod perfparser;
@@ -50,4 +49,3 @@ mod gen {
 		 between X1 and X2 or between X3 and X4
 		 ;";
 }
-

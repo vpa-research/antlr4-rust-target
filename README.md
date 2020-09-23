@@ -11,64 +11,59 @@ and [tests/my_tests.rs](tests/my_test.rs) for actual usage examples
 ### Implementation status
 
 Everything is implemented, "business" logic is quite stable and well tested, but user facing 
-API is not very robust yet an very likely will have some changes.
+API is not very robust yet and very likely will have some changes.
 
 For now development is going on in this repository 
 but eventually it will be merged to main ANTLR4 repo
 
-Currently requires nightly version of rust. 
-This very likely will be the case until `specialization`,`try_blocks` and `unsize` features are stabilized. 
+Currently, requires nightly version of rust. 
+This likely will be the case until `coerce_unsize` or some kind of coercion trait is stabilized. 
+There are other unstable features in use but only `CoerceUnsized` is essential. 
 
 Remaining things before merge:
  - API stabilization
    - [ ] Rust api guidelines compliance  
    - [ ] more tests for API because it is quite different from Java
- - make parsing zero copy(i.e. use &str(or Cow) instead String in token and &Token in tree nodes)
- - more generic `PredictionContext`
- - generic over ownership for string
- - generate enum for labeled alternatives without redundant `Error` option
- - option to generate fields instead of getters by default
- - move useful exports to lib.rs for better documentation
 
 Can be done after merge: 
- - profiling and performance optimizations
+ - more profiling and performance optimizations
  - Documentation
    - [ ] Some things are already documented but still far from perfect, also more links needed.
  - Code quality
    - [ ] Rustfmt fails to run currently
    - [ ] Clippy sanitation 
    - [ ] Not all warning are fixed
- - visitor
- - build.rs integration + example
+ - cfg to not build potentially unnecessary parts 
+ (no Lexer if custom token stream, no ParserATNSimulator if LL(1) grammar)  
  - run rustfmt on generated parser
 ###### Long term improvements
- - make tree generic over pointer type
+ - generate enum for labeled alternatives without redundant `Error` option
+ - option to generate fields instead of getters by default
+ - make tree generic over pointer type and allow tree nodes to arena.
  (requires GAT, otherwise it would be a problem for users that want ownership for parse tree)
  - support stable rust
  - support no_std(although alloc would still be required)  
   
 ### Usage
 
-You use the ANTLR4 "tool" to generate a parser, that will use the ANTLR 
-runtime, located here.
-
-Suppose you're using a UNIX system and have set up an alias for the ANTLR4 tool 
-as described in [the getting started guide](https://github.com/antlr/antlr4/blob/master/doc/getting-started.md). 
-To generate your Rust parser, run the following command:
+You should use the ANTLR4 "tool" to generate a parser, that will use the ANTLR 
+runtime, located here. You can run it with the following command:
 ```bash
-antlr4 -Dlanguage=Rust MyGrammar.g4
+java -jar <path to ANTLR4 tool> -Dlanguage=Rust MyGrammar.g4
 ```
-
 For a full list of antlr4 tool options, please visit the 
 [tool documentation page](https://github.com/antlr/antlr4/blob/master/doc/tool-options.md).
 
-Then add to `Cargo.toml` of the crate from which generated parser is going to be used.
+You can also see [build.rs](build.rs) as an example of `build.rs` configuration 
+to rebuild parser automatically if grammar file was changed
+
+Then add following to `Cargo.toml` of the crate from which generated parser 
+is going to be used:
 ```toml 
 [dependencies]
-lazy_static = "1.4"
-antlr-rust = "0.1"
+antlr-rust = "=0.2"
 ```
-and `#![feature(try_blocks)]` in your project root module.
+and `#![feature(try_blocks)]`(also `#![feature(specialization)]` if you are generating visitor) in your project root module.  
  
 ### Parse Tree structure
 
@@ -89,21 +84,30 @@ It also is possible to disable generic parse tree creation to keep only selected
 `parser.build_parse_trees = false`.
   
 ### Differences with Java
-Although Rust runtime API is made as close as possible to Java, 
+Although Rust runtime API has been made as close as possible to Java, 
 there are quite some differences because Rust is not an OOP language and is much more explicit. 
 
- - All rule context variables (rule argument or rule return) should implement `Default + Clone`.
+ - Supports full zero-copy parsing including byte parsers.
  - If you are using labeled alternatives, 
- struct generated for rule is a enum with variant for each alternative
- - Parser needs to have ownership for listeners, but it is possible te get listener back via `ListenerId`
+ struct generated for rule is an enum with variant for each alternative
+ - Parser needs to have ownership for listeners, but it is possible to get listener back via `ListenerId`
  otherwise `ParseTreeWalker` should be used.
- - In embedded actions to access parser you should use `recog` variable instead of `self`. 
- This is because predicate have to be inserted into two syntactically different places in generated parser 
- 
+ - In embedded actions to access parser you should use `recog` variable instead of `self`/`this`. 
+ This is because predicate have to be inserted into two syntactically different places in generated parser
+ - String `InputStream` have different index behavior when there are unicode characters. 
+ If you need exactly the same behavior, use `[u32]` based `InputStream`, or implement custom `CharStream`.
+ - In actions you have to escape `'` in rust lifetimes with `\ ` because ANTLR considers them as strings, e.g. `Struct<\'lifetime>`
+ - To make custom tokens you should use `@tokenfactory` custom action, instead of usual `TokenLabelType` parser option.
+ In Rust target TokenFactory is main customisation interface that allows to specify input type of token type. 
+ - All rule context variables (rule argument or rule return) should implement `Default + Clone`.
  
 ### Unsafe
-Currently unsafe is used only to cast from trait object back to original type 
+Currently, unsafe is used only to cast from trait object back to original type 
 and to update data inside Rc via `get_mut_unchecked`(returned mutable reference is used immediately and not stored anywhere)
+
+### Versioning
+In addition to usual Rust semantic versioning, 
+patch version changes of the crate should not require updating of generator part 
   
 ## Licence
 
