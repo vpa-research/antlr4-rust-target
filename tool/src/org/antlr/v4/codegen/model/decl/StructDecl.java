@@ -38,7 +38,7 @@ public class StructDecl extends Decl {
 	public OrderedHashSet<Decl> ruleContextDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> ruleContextListDecls = new OrderedHashSet<Decl>();
 	public OrderedHashSet<Decl> attributeDecls = new OrderedHashSet<Decl>();
-	// Required to allow to initialize attributes that come from constructor differently
+	// Required to be able to differently initialize attributes that come from constructor
 	// required for Rust target
 	public OrderedHashSet<AttributeDecl> notCtorAttrs = new OrderedHashSet<AttributeDecl>();
 

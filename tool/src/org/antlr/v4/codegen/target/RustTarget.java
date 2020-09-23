@@ -209,6 +209,12 @@ public class RustTarget extends Target {
 	}
 
 	@Override
+	public String processActionText(String text) {
+		// in rust `'` is not escapable so we don't care about inside string
+		return text.replaceAll("\\\\'", "'");
+	}
+
+	@Override
 	public boolean wantsBaseListener() {
 		return false;
 	}

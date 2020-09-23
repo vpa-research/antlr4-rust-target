@@ -8,7 +8,7 @@ Not(v) ::= "!<v>"
 Assert(s) ::= ""
 //Cast(t,v) ::= "cast::\<_,<t>>(&*<v>)"
 Cast(t,v) ::= <<(if let EContextAll::<t>(ctx) = &*<v> { ctx } else { panic!("can't cast")} )>>
-Append(a,b) ::= "<a>.to_string() + &(<b>).to_string()"
+Append(a,b) ::= "format!(\"{}{}\",<a>, <b>.unwrap())"
 AppendStr(a,b) ::= <%<a>.to_string() + &(<b>)%>
 Concat(a,b) ::= "<a><b>"
 
@@ -110,14 +110,18 @@ impl\<T:CustomRuleContext> antlr_rust::parser_rule_context::DerefSeal for MyRule
 >>
 
 PositionAdjustingLexer() ::= <<
-   fn handleAcceptPositionForIdentifier(this: &mut BaseLexer\<Self>) {
+>>
+
+PositionAdjustingLexerDef() ::= <<
+//@definitions
+   fn handleAcceptPositionForIdentifier\<'input, Input:CharStream\<From\<'input>\>>(this: &mut BaseLexer\<'input,PositionAdjustingLexerActions,Input,LocalTokenFactory\<'input> >) {
      let tokenText = this.get_text();
-     let identifierLength = tokenText.chars().position(|it| !Self::isIdentifierChar(it)).unwrap() as isize;
-//     while (identifierLength \< tokenText.len() as isize && Self::isIdentifierChar(tokenText[identifierLength as usize])) {
+     let identifierLength = tokenText.chars().position(|it| !isIdentifierChar(it)).unwrap() as isize;
+//     while (identifierLength \< tokenText.len() as isize && isIdentifierChar(tokenText[identifierLength as usize])) {
 //       identifierLength+=1;
 //     }
 
-     if (this.get_input_stream().index() > this.token_start_char_index + identifierLength) {
+     if (this.get_input_stream().unwrap().index() > this.token_start_char_index + identifierLength) {
        let offset = identifierLength - 1;
        let mut input = this.input.take().unwrap();
        this.interpreter.as_mut().unwrap().resetAcceptPosition(input.as_mut(),
@@ -128,7 +132,7 @@ PositionAdjustingLexer() ::= <<
 
    }
 
-   fn handleAcceptPositionForKeyword(this: &mut BaseLexer\<Self>, keyword: &str) {
+   fn handleAcceptPositionForKeyword\<'input, Input:CharStream\<From\<'input>\>>(this: &mut BaseLexer\<'input,PositionAdjustingLexerActions,Input,LocalTokenFactory\<'input> >, keyword: &str) {
    	let mut input = this.input.take().unwrap();
      if (input.index() > this.token_start_char_index + keyword.len() as isize) {
        let offset = keyword.len() as isize - 1;
@@ -144,15 +148,12 @@ PositionAdjustingLexer() ::= <<
    fn isIdentifierChar(c: char) -> bool{
      return c.is_ascii_alphanumeric() || c == '_';
    }
->>
 
-PositionAdjustingLexerDef() ::= <<
-//@definitions
 trait PositionAdjustingLexerATNSim {
-    fn resetAcceptPosition(&mut self, input: &mut dyn CharStream, index: isize, line: isize, charPositionInLine: isize);
+    fn resetAcceptPosition(&mut self, input: &mut dyn IntStream, index: isize, line: isize, charPositionInLine: isize);
   }
 impl PositionAdjustingLexerATNSim for antlr_rust::lexer_atn_simulator::LexerATNSimulator{
-    fn resetAcceptPosition(&mut self, input: &mut dyn CharStream, index: isize, line: isize, charPositionInLine: isize) {
+    fn resetAcceptPosition(&mut self, input: &mut dyn IntStream, index: isize, line: isize, charPositionInLine: isize) {
       input.seek(index);
       self.set_line(line);
       self.set_char_position_in_line(charPositionInLine);
@@ -163,91 +164,86 @@ impl PositionAdjustingLexerATNSim for antlr_rust::lexer_atn_simulator::LexerATNS
 }
 @extend{
 
-  fn before_emit(lexer:&mut BaseLexer\<Self>) {
+  fn before_emit(lexer:&mut BaseLexer\<'input,PositionAdjustingLexerActions,Input,LocalTokenFactory\<'input> >) {
     match (lexer.token_type) {
-      TOKENS => Self::handleAcceptPositionForKeyword(lexer,"tokens"),
-      LABEL => Self::handleAcceptPositionForIdentifier(lexer),
+      TOKENS => handleAcceptPositionForKeyword(lexer,"tokens"),
+      LABEL => handleAcceptPositionForIdentifier(lexer),
       _ => {}
     }
   }
 
 >>
 
+
 BasicListener(X) ::= <<
 @parser::definitions {
-use antlr_rust::tree::ParseTreeListener;
 struct TestListener;
 
-impl ParseTreeListener for TestListener{
-	fn visit_terminal(&mut self, node: &TerminalNode) {
+impl\<'a> ParseTreeListener\<'a,TParserContextType> for TestListener{
+	fn visit_terminal(&'_ mut self, node: &TerminalNode\<'a,TParserContextType> ) {
 		println!("{}",node.symbol.get_text());
 	}
 }
-impl TListener for TestListener{}
+impl\<'a> TListener\<'a> for TestListener{}
 }
 >>
 
 WalkListener(s) ::= <<
-let walker = antlr_rust::tree::ParseTreeWalker;
-let mut listener:Box\<dyn TListener> = Box::new(TestListener);
-walker.walk(&mut listener, <s>.deref());
+TTreeWalker::walk(Box::new(TestListener), <s>.deref());
 >>
 
 TokenGetterListener(X) ::= <<
 @parser::definitions {
-use antlr_rust::tree::ParseTreeListener;
 use crate::antlr_rust::tree::Tree;
 struct TestListener;
 
-impl TListener for TestListener{
+impl TListener\<'_> for TestListener{
 	fn exit_a(&mut self, node: &AContext) {
-		if node.get_children().len() == 2 {
+		if node.get_child_count() == 2 {
 			println!("{} {} {:?}",node.INT(0).unwrap().symbol.get_text(),node.INT(1).unwrap().symbol.get_text(),node.INT_all())
 		} else{
 			println!("{}",node.ID().unwrap().symbol);
 		}
 	}
 }
-impl ParseTreeListener for TestListener{}
+impl ParseTreeListener\<'_,TParserContextType> for TestListener{}
 }
 >>
 
 RuleGetterListener(X) ::= <<
 @parser::definitions {
 
-use antlr_rust::tree::ParseTreeListener;
 use crate::antlr_rust::tree::Tree;
 struct TestListener;
 
-impl TListener for TestListener{
+impl TListener\<'_> for TestListener{
 	fn exit_a(&mut self, node: &AContext) {
-		if node.get_children().len() == 2 {
+		if node.get_child_count() == 2 {
 			println!("{} {} {}",
-				node.b(0).unwrap().get_start().get_text(),
-				node.b(1).unwrap().get_start().get_text(),
-				node.b_all()[0].get_start().get_text(),
+				node.b(0).unwrap().start().get_text(),
+				node.b(1).unwrap().start().get_text(),
+				node.b_all()[0].start().get_text(),
 			)
 		} else{
-			println!("{}",node.b(0).unwrap().get_start().get_text());
+			println!("{}",node.b(0).unwrap().start().get_text());
 		}
 	}
 }
-impl ParseTreeListener for TestListener{}
+impl ParseTreeListener\<'_,TParserContextType> for TestListener{}
 }
 >>
 
 
 LRListener(X) ::= <<
 @parser::definitions {
-use antlr_rust::tree::ParseTreeListener;
 use antlr_rust::tree::Tree;
 struct TestListener;
 
-impl ParseTreeListener for TestListener{}
-impl TListener for TestListener{
+impl ParseTreeListener\<'_,TParserContextType> for TestListener{}
+impl TListener\<'_> for TestListener{
 	fn exit_e(&mut self, ctx: &EContext) {
-		if ctx.get_children().len() == 3 {
-			println!("{} {} {}",ctx.e(0).unwrap().get_start().get_text(),ctx.e(1).unwrap().get_start().get_text(),ctx.e_all()[0].get_start().get_text());
+		if ctx.get_child_count() == 3 {
+			println!("{} {} {}",ctx.e(0).unwrap().start().get_text(),ctx.e(1).unwrap().start().get_text(),ctx.e_all()[0].start().get_text());
 		} else {
 			println!("{}",ctx.INT().unwrap().symbol.get_text());
 		}
@@ -259,14 +255,14 @@ impl TListener for TestListener{
 LRWithLabelsListener(X) ::= <<
 @parser::definitions {
 
-use antlr_rust::tree::ParseTreeListener;
 use antlr_rust::tree::Tree;
+use antlr_rust::parser_rule_context::RuleContextExt;
 struct TestListener;
 
-impl ParseTreeListener for TestListener{}
-impl TListener for TestListener{
+impl ParseTreeListener\<'_,TParserContextType> for TestListener{}
+impl TListener\<'_> for TestListener{
 	fn exit_Call(&mut self, ctx: &CallContext) {
-		println!("{} {}",ctx.e().unwrap().get_start().get_text(),ctx.eList().unwrap().to_string(None,None));
+		println!("{} {}",ctx.e().unwrap().start().get_text(),ctx.eList().unwrap().to_string(None,None));
 	}
 	fn exit_Int(&mut self, ctx: &IntContext){
 		println!("{}",ctx.INT().unwrap().symbol.get_text());

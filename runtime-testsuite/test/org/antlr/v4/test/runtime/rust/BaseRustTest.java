@@ -426,6 +426,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 	}
 
 	private String executeRecognizer() {
+		System.out.println("dir: " + tmpdir);
 		writeFile(tmpdir, "Cargo.toml",
 				"[package]\n" +
 						"name = \"antlr-test\"\n" +
@@ -463,12 +464,14 @@ public class BaseRustTest implements RuntimeTestSupport {
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
 			builder.directory(new File(tmpdir));
+			long time = System.currentTimeMillis();
 			Process process = builder.start();
 			StreamVacuum stdoutVacuum = new StreamVacuum(process.getInputStream());
 			StreamVacuum stderrVacuum = new StreamVacuum(process.getErrorStream());
 			stdoutVacuum.start();
 			stderrVacuum.start();
 			int rc = process.waitFor();
+			System.out.println("cargo " + command + ", exec time: " + (System.currentTimeMillis() - time));
 			stdoutVacuum.join();
 			stderrVacuum.join();
 			String output = stdoutVacuum.toString();
@@ -638,6 +641,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 									   String parserStartRuleName, boolean debug) {
 		ST outputFileST = new ST("#![feature(try_blocks)]\n" +
 				"#![feature(inner_deref)]\n" +
+				"#![feature(specialization)]\n" +
 				"extern crate antlr_rust;\n" +
 				"#[macro_use]\n" +
 				"extern crate lazy_static;\n" +
@@ -646,7 +650,8 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"mod <importParser>;\n" +
 				"use <importParser>::*;\n" +
 				"mod <importListener>;\n" +
-				"use antlr_rust::input_stream::InputStream;\n" +
+				"mod <importVisitor>;\n" +
+				"use antlr_rust::InputStream;\n" +
 				"use antlr_rust::token::OwningToken;\n" +
 				"use antlr_rust::token_stream::{UnbufferedTokenStream, TokenStream};\n" +
 				"use antlr_rust::common_token_stream::CommonTokenStream;\n" +
@@ -655,7 +660,8 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"\n" +
 				"fn main() -> std::io::Result\\<()>{\n" +
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
-				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(input)));\n" +
+				"	let input = input.chars().map(|x|x as u32).collect::\\<Vec\\<_> >();\n" +
+				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(&*input)));\n" +
 				"	let mut token_source = CommonTokenStream::new(lexer);\n" +
 				"<createParser>" +
 				"	let result = parser.<parserStartRuleName>().unwrap();\n" +
@@ -676,6 +682,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 		outputFileST.add("lexerName", lexerName);
 		outputFileST.add("importLexer", lexerName.toLowerCase());
 		outputFileST.add("importListener", listenerName.toLowerCase());
+		outputFileST.add("importVisitor", visitorName.toLowerCase());
 		outputFileST.add("parserStartRuleName", parserStartRuleName);
 		writeFile(srcdir, "main.rs", outputFileST.render());
 	}
@@ -687,14 +694,15 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"extern crate lazy_static;\n" +
 				"mod <importName>;\n" +
 				"use <importName>::*;\n" +
-				"use antlr_rust::input_stream::InputStream;\n" +
+				"use antlr_rust::InputStream;\n" +
 				"use antlr_rust::lexer::Lexer;\n" +
 				"use antlr_rust::token::OwningToken;\n" +
 				"use antlr_rust::token_stream::{UnbufferedTokenStream, TokenStream};\n" +
 				"\n" +
 				"fn main() -> std::io::Result\\<()>{\n" +
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
-				"	let mut _lexer = <lexerName>::new(Box::new(InputStream::new(input)));\n" +
+				"	let input = input.chars().map(|x|x as u32).collect::\\<Vec\\<_> >();\n" +
+				"	let mut _lexer = <lexerName>::new(Box::new(InputStream::new(&*input)));\n" +
 				"	{let mut token_source = UnbufferedTokenStream::new_unbuffered(&mut _lexer);\n" +
 				"		let tokens = token_source.token_iter().collect::\\<Vec\\<OwningToken>>();\n" +
 				"		for token in tokens.iter(){\n" +
