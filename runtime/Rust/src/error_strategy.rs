@@ -1,8 +1,11 @@
+//!
+//!
+//!
 use std::borrow::Borrow;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use crate::atn_simulator::IATNSimulator;
@@ -19,10 +22,12 @@ use crate::rule_context::{CustomRuleContext, RuleContext};
 use crate::token::{
     OwningToken, Token, TOKEN_DEFAULT_CHANNEL, TOKEN_EOF, TOKEN_EPSILON, TOKEN_INVALID_TYPE,
 };
-use crate::token_factory::TokenFactory;
+use crate::token_factory::{TokenAware, TokenFactory};
 use crate::transition::RuleTransition;
 use crate::tree::Tree;
 use crate::utils::escape_whitespaces;
+use better_any::{impl_tid, Tid, TidAble};
+use std::any::Any;
 
 /// The interface for defining strategies to deal with syntax errors encountered
 /// during a parse by ANTLR-generated parsers. We distinguish between three
@@ -37,7 +42,7 @@ use crate::utils::escape_whitespaces;
 /// Implementations of this interface report syntax errors by calling [`Parser.notifyErrorListeners`]
 ///
 /// [`Parser.notifyErrorListeners`]: todo
-pub trait ErrorStrategy<'a, T: Parser<'a>> {
+pub trait ErrorStrategy<'a, T: Parser<'a>>: Tid<'a> {
     fn reset(&mut self, recognizer: &mut T);
     fn recover_inline(
         &mut self,
@@ -49,13 +54,65 @@ pub trait ErrorStrategy<'a, T: Parser<'a>> {
     fn report_error(&mut self, recognizer: &mut T, e: &ANTLRError);
     fn report_match(&mut self, recognizer: &mut T);
 }
+//
+// impl<'a, T: Parser<'a>> Default for Box<dyn ErrorStrategy<'a, T> + 'a> {
+//     fn default() -> Self { Box::new(DefaultErrorStrategy::new()) }
+// }
+//
+// /// Error strategy trait object if there is a need to change error strategy at runtime
+// /// Supports downcasting.
+// pub type DynHandler<'a, T> = Box<dyn ErrorStrategy<'a, T> + 'a>;
 
+#[impl_tid]
+impl<'a, T: Parser<'a> + TidAble<'a>> TidAble<'a> for Box<dyn ErrorStrategy<'a, T> + 'a> {}
+
+impl<'a, T: Parser<'a> + TidAble<'a>> ErrorStrategy<'a, T> for Box<dyn ErrorStrategy<'a, T> + 'a> {
+    #[inline(always)]
+    fn reset(&mut self, recognizer: &mut T) { self.deref_mut().reset(recognizer) }
+
+    #[inline(always)]
+    fn recover_inline(
+        &mut self,
+        recognizer: &mut T,
+    ) -> Result<<T::TF as TokenFactory<'a>>::Tok, ANTLRError> {
+        self.deref_mut().recover_inline(recognizer)
+    }
+
+    #[inline(always)]
+    fn recover(&mut self, recognizer: &mut T, e: &ANTLRError) -> Result<(), ANTLRError> {
+        self.deref_mut().recover(recognizer, e)
+    }
+
+    #[inline(always)]
+    fn sync(&mut self, recognizer: &mut T) -> Result<(), ANTLRError> {
+        self.deref_mut().sync(recognizer)
+    }
+
+    #[inline(always)]
+    fn in_error_recovery_mode(&mut self, recognizer: &mut T) -> bool {
+        self.deref_mut().in_error_recovery_mode(recognizer)
+    }
+
+    #[inline(always)]
+    fn report_error(&mut self, recognizer: &mut T, e: &ANTLRError) {
+        self.deref_mut().report_error(recognizer, e)
+    }
+
+    #[inline(always)]
+    fn report_match(&mut self, recognizer: &mut T) { self.deref_mut().report_match(recognizer) }
+}
+
+#[derive(Debug, Tid)]
 pub struct DefaultErrorStrategy<'input, Ctx: ParserNodeType<'input>> {
     error_recovery_mode: bool,
     last_error_index: isize,
     last_error_states: Option<IntervalSet>,
     next_tokens_state: isize,
     next_tokens_ctx: Option<Rc<Ctx::Type>>,
+}
+
+impl<'input, Ctx: ParserNodeType<'input>> Default for DefaultErrorStrategy<'input, Ctx> {
+    fn default() -> Self { Self::new() }
 }
 
 impl<'input, Ctx: ParserNodeType<'input>> DefaultErrorStrategy<'input, Ctx> {
@@ -457,6 +514,7 @@ myparser.err_handler = BailErrorStrategy::new();
 
 [`ParserRuleContext.exception`]: todo
 */
+#[derive(Default, Debug, Tid)]
 pub struct BailErrorStrategy<'input, Ctx: ParserNodeType<'input>>(
     DefaultErrorStrategy<'input, Ctx>,
 );
@@ -496,8 +554,10 @@ impl Display for ParseCancelledError {
 }
 
 impl<'a, T: Parser<'a>> ErrorStrategy<'a, T> for BailErrorStrategy<'a, T::Node> {
+    #[inline(always)]
     fn reset(&mut self, recognizer: &mut T) { self.0.reset(recognizer) }
 
+    #[inline(always)]
     fn recover_inline(
         &mut self,
         recognizer: &mut T,
@@ -507,22 +567,27 @@ impl<'a, T: Parser<'a>> ErrorStrategy<'a, T> for BailErrorStrategy<'a, T::Node> 
         Err(self.process_error(recognizer, &err))
     }
 
+    #[inline(always)]
     fn recover(&mut self, recognizer: &mut T, e: &ANTLRError) -> Result<(), ANTLRError> {
         Err(self.process_error(recognizer, &e))
     }
 
+    #[inline(always)]
     fn sync(&mut self, _recognizer: &mut T) -> Result<(), ANTLRError> {
         /* empty */
         Ok(())
     }
 
+    #[inline(always)]
     fn in_error_recovery_mode(&mut self, recognizer: &mut T) -> bool {
         self.0.in_error_recovery_mode(recognizer)
     }
 
+    #[inline(always)]
     fn report_error(&mut self, recognizer: &mut T, e: &ANTLRError) {
         self.0.report_error(recognizer, e)
     }
 
+    #[inline(always)]
     fn report_match(&mut self, recognizer: &mut T) { self.0.report_match(recognizer) }
 }

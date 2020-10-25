@@ -21,7 +21,7 @@ mod gen {
     use antlr_rust::token_stream::{TokenStream, UnbufferedTokenStream};
     use antlr_rust::tree::{
         ParseTree, ParseTreeListener, ParseTreeVisitor, ParseTreeWalker, TerminalNode, Tree,
-        Visitable,
+        VisitChildren, Visitable,
     };
     use antlr_rust::InputStream;
     use csvlexer::*;
@@ -32,7 +32,9 @@ mod gen {
     use referencetoatnparser::ReferenceToATNParser;
     use xmllexer::XMLLexer;
 
-    use crate::gen::csvparser::{CSVParserContext, CSVParserContextType, HdrContext, RowContext};
+    use crate::gen::csvparser::{
+        CSVParserContext, CSVParserContextType, CsvFileContext, HdrContext, RowContext,
+    };
     use crate::gen::csvvisitor::CSVVisitor;
     use crate::gen::labelslexer::LabelsLexer;
     use crate::gen::labelsparser::{AddContext, EContextAll, LabelsParser};
@@ -72,7 +74,7 @@ if (x < x && a > 0) then duh
 ]]>
 </script>"#
             .to_owned();
-        let mut _lexer = XMLLexer::new(Box::new(InputStream::new(&*data)));
+        let mut _lexer = XMLLexer::new(InputStream::new(&*data));
         //        _lexer.base.add_error_listener();
         let _a = "a".to_owned() + "";
         let mut string = String::new();
@@ -116,7 +118,7 @@ if (x < x && a > 0) then duh
         println!("test started lexer_test_csv");
         let tf = ArenaCommonFactory::default();
         let mut _lexer = CSVLexer::new_with_token_factory(
-            Box::new(InputStream::new("V123,V2\nd1,d222".into())),
+            InputStream::new("V123,V2\nd1,d222".into()),
             // Box::new(UTF16InputStream::from_str("V123,V2\nd1,d222","".into())),
             &tf,
         );
@@ -176,12 +178,10 @@ if (x < x && a > 0) then duh
     fn parser_test_csv() {
         println!("test started");
         let tf = ArenaCommonFactory::default();
-        let mut _lexer = CSVLexer::new_with_token_factory(
-            Box::new(InputStream::new("V123,V2\nd1,d2\n".into())),
-            &tf,
-        );
+        let mut _lexer =
+            CSVLexer::new_with_token_factory(InputStream::new("V123,V2\nd1,d2\n".into()), &tf);
         let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = CSVParser::new(Box::new(token_source));
+        let mut parser = CSVParser::new(token_source);
         parser.add_parse_listener(Box::new(Listener {}));
         println!("\nstart parsing parser_test_csv");
         let result = parser.csvFile();
@@ -210,14 +210,14 @@ if (x < x && a > 0) then duh
     static FACTORY: OwningTokenFactory = OwningTokenFactory;
 
     #[test]
-    fn adaptive_predict_test() {
+    fn test_adaptive_predict_and_owned_tree() {
         let text = "a 34 b".to_owned();
         let mut _lexer = ReferenceToATNLexer::new_with_token_factory(
-            Box::new(InputStream::new(&*text)),
+            InputStream::new_owned(text.into_boxed_str()),
             &FACTORY,
         );
         let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = ReferenceToATNParser::new(Box::new(token_source));
+        let mut parser = ReferenceToATNParser::new(token_source);
         parser.add_parse_listener(Box::new(Listener2 {}));
         println!("\nstart parsing adaptive_predict_test");
         let result = parser.a();
@@ -255,9 +255,9 @@ if (x < x && a > 0) then duh
 
     #[test]
     fn test_lr() {
-        let mut _lexer = SimpleLRLexer::new(Box::new(InputStream::new("x y z".into())));
+        let mut _lexer = SimpleLRLexer::new(InputStream::new("x y z".into()));
         let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = SimpleLRParser::new(Box::new(token_source));
+        let mut parser = SimpleLRParser::new(token_source);
         parser.add_parse_listener(Box::new(Listener3));
         println!("\nstart parsing lr_test");
         let result = parser.s().expect("failed recursion parsion");
@@ -266,9 +266,9 @@ if (x < x && a > 0) then duh
 
     #[test]
     fn test_immediate_lr() {
-        let mut _lexer = SimpleLRLexer::new(Box::new(InputStream::new("x y z".into())));
+        let mut _lexer = SimpleLRLexer::new(InputStream::new("x y z".into()));
         let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = SimpleLRParser::new(Box::new(token_source));
+        let mut parser = SimpleLRParser::new(token_source);
         parser.add_parse_listener(Box::new(Listener3));
         println!("\nstart parsing lr_test");
         let result = parser.a().expect("failed immediate recursion parsing");
@@ -298,9 +298,9 @@ if (x < x && a > 0) then duh
 
     #[test]
     fn test_remove_listener() {
-        let mut _lexer = SimpleLRLexer::new(Box::new(InputStream::new("x y z".into())));
+        let mut _lexer = SimpleLRLexer::new(InputStream::new("x y z".into()));
         let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = SimpleLRParser::new(Box::new(token_source));
+        let mut parser = SimpleLRParser::new(token_source);
         parser.add_parse_listener(Box::new(Listener3));
         let id = parser.add_parse_listener(Box::new(Listener4 {
             data: String::new(),
@@ -335,9 +335,9 @@ if (x < x && a > 0) then duh
         let codepoints = "(a+4)*2".chars().map(|x| x as u32).collect::<Vec<_>>();
         // let codepoints = "(a+4)*2";
         let input = InputStream::new(&*codepoints);
-        let mut lexer = LabelsLexer::new(Box::new(input));
+        let mut lexer = LabelsLexer::new(input);
         let token_source = CommonTokenStream::new(lexer);
-        let mut parser = LabelsParser::new(Box::new(token_source));
+        let mut parser = LabelsParser::new(token_source);
         let result = parser.s().expect("parser error");
         let string = result.q.as_ref().unwrap().get_v();
         assert_eq!("* + a 4 2", string);
@@ -348,19 +348,23 @@ if (x < x && a > 0) then duh
         }
     }
 
-    struct MyCSVVisitor(String);
+    struct MyCSVVisitor<'i>(Vec<&'i str>);
 
-    impl<'i> ParseTreeVisitor<'i, CSVParserContextType> for MyCSVVisitor {
+    impl<'i> ParseTreeVisitor<'i, CSVParserContextType> for MyCSVVisitor<'i> {
         fn visit_terminal(&mut self, node: &TerminalNode<'i, CSVParserContextType>) {
             if node.symbol.get_token_type() == csvparser::TEXT {
-                write!(&mut self.0, "{} ", node.get_text());
+                if let Cow::Borrowed(s) = node.symbol.text {
+                    self.0.push(s);
+                }
             }
         }
     }
 
     use csvparser::RowContextAttrs;
+    use std::borrow::Cow;
+    use std::rc::Rc;
 
-    impl<'i> CSVVisitor<'i> for MyCSVVisitor {
+    impl<'i> CSVVisitor<'i> for MyCSVVisitor<'i> {
         fn visit_hdr(&mut self, ctx: &HdrContext<'i>) {}
 
         fn visit_row(&mut self, ctx: &RowContext<'i>) {
@@ -370,21 +374,24 @@ if (x < x && a > 0) then duh
         }
     }
 
+    // tests zero-copy parsing with non static visitor
     #[test]
     fn test_visitor() {
+        fn parse<'a>(tf: &'a ArenaCommonFactory<'a>) -> Rc<CsvFileContext<'a>> {
+            let mut _lexer =
+                CSVLexer::new_with_token_factory(InputStream::new("h1,h2\nd1,d2\nd3\n".into()), tf);
+            let token_source = CommonTokenStream::new(_lexer);
+            let mut parser = CSVParser::new(token_source);
+            let result = parser.csvFile().expect("parsed unsuccessfully");
+
+            let mut visitor = MyCSVVisitor(Vec::new());
+            result.accept(&mut visitor);
+            assert_eq!(visitor.0, vec!["d1", "d2"]);
+
+            result
+        }
         let tf = ArenaCommonFactory::default();
-        let mut _lexer = CSVLexer::new_with_token_factory(
-            Box::new(InputStream::new("h1,h2\nd1,d2\nd3\n".into())),
-            &tf,
-        );
-        let token_source = CommonTokenStream::new(_lexer);
-        let mut parser = CSVParser::new(Box::new(token_source));
-        let result = parser.csvFile().expect("parsed unsuccessfully");
 
-        let mut visitor = MyCSVVisitor(String::new());
-
-        result.accept(&mut visitor);
-
-        assert_eq!(visitor.0, "d1 d2 ");
+        let result = parse(&tf);
     }
 }
