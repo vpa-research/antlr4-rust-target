@@ -49,6 +49,7 @@ pub trait ILexerATNSimulator: IATNSimulator {
     fn get_line(&self) -> isize;
     fn set_line(&mut self, line: isize);
     fn consume(&self, input: &mut dyn IntStream);
+    #[cold]
     fn recover(&mut self, _re: ANTLRError, input: &mut dyn IntStream) {
         if input.la(1) != EOF {
             self.consume(input)
@@ -579,7 +580,7 @@ impl LexerATNSimulator {
         lexer: &mut T,
     ) -> bool {
         if !speculative {
-            return lexer.sempred(&*empty_ctx::<T::TF>(), rule_index, pred_index);
+            return lexer.sempred(None, rule_index, pred_index);
         }
 
         let saved_column = self.current_pos.char_position_in_line.get();
@@ -588,7 +589,7 @@ impl LexerATNSimulator {
         let marker = lexer.get_input_stream().unwrap().mark();
         self.consume(lexer.get_input_stream().unwrap());
 
-        let result = lexer.sempred(&*empty_ctx::<T::TF>(), rule_index, pred_index);
+        let result = lexer.sempred(None, rule_index, pred_index);
 
         self.current_pos.char_position_in_line.set(saved_column);
         self.current_pos.line.set(saved_line);
