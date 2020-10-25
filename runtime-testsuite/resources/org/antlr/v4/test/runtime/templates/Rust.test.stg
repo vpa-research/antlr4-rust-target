@@ -42,7 +42,10 @@ Pass() ::= "/* do nothing */"
 
 StringList() ::= "Vec\<String>"
 BuildParseTrees() ::= "recog.build_parse_trees = true;"
-BailErrorStrategy() ::= "recog.err_handler = Box::new(antlr_rust::error_strategy::BailErrorStrategy::new());"
+BailErrorStrategy() ::=
+<<use antlr_rust::TidExt;
+*recog.err_handler.downcast_mut::\<DynStrategy\<I> >().unwrap() = Box::new(antlr_rust::error_strategy::BailErrorStrategy::new());
+>>
 
 ToStringTree(s) ::= "<s>.to_string_tree(&recog.base)"
 Column() ::= "recog.get_char_position_in_line()"
@@ -124,7 +127,7 @@ PositionAdjustingLexerDef() ::= <<
      if (this.get_input_stream().unwrap().index() > this.token_start_char_index + identifierLength) {
        let offset = identifierLength - 1;
        let mut input = this.input.take().unwrap();
-       this.interpreter.as_mut().unwrap().resetAcceptPosition(input.as_mut(),
+       this.interpreter.as_mut().unwrap().resetAcceptPosition(&mut input,
          this.token_start_char_index + offset, this.token_start_line, this.token_start_column + offset);
        this.input = Some(input);
        //return;
@@ -136,7 +139,7 @@ PositionAdjustingLexerDef() ::= <<
    	let mut input = this.input.take().unwrap();
      if (input.index() > this.token_start_char_index + keyword.len() as isize) {
        let offset = keyword.len() as isize - 1;
-       this.interpreter.as_mut().unwrap().resetAcceptPosition(input.as_mut(),
+       this.interpreter.as_mut().unwrap().resetAcceptPosition(&mut input,
          this.token_start_char_index + offset, this.token_start_line, this.token_start_column + offset);
        //return true;
      }

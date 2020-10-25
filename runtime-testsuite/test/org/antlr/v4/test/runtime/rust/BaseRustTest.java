@@ -459,7 +459,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 
 	private String cargo(String command) {
 		try {
-			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", cargo_options);
+			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline", cargo_options);
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
@@ -661,7 +661,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"fn main() -> std::io::Result\\<()>{\n" +
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
 				"	let input = input.chars().map(|x|x as u32).collect::\\<Vec\\<_> >();\n" +
-				"	let mut lexer = <lexerName>::new(Box::new(InputStream::new(&*input)));\n" +
+				"	let mut lexer = <lexerName>::new(InputStream::new(&*input));\n" +
 				"	let mut token_source = CommonTokenStream::new(lexer);\n" +
 				"<createParser>" +
 				"	let result = parser.<parserStartRuleName>().unwrap();\n" +
@@ -669,11 +669,11 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"	Ok(())" +
 				"}\n"
 		);
-		ST createParserST = new ST("    let mut parser = <parserName>::new(Box::new(token_source));\n");
+		ST createParserST = new ST("    let mut parser = <parserName>::with_dyn_strategy(token_source);\n");
 		if (debug) {
 			createParserST =
 					new ST(
-							"    let mut parser = <parserName>::new(Box::new(token_source));\n" +
+							"    let mut parser = <parserName>::with_dyn_strategy(token_source);\n" +
 									"    parser.add_error_listener(Box::new(DiagnosticErrorListener::new(true)));\n");
 		}
 		outputFileST.add("createParser", createParserST);
@@ -702,7 +702,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"fn main() -> std::io::Result\\<()>{\n" +
 				"	let input = std::fs::read_to_string(std::env::current_dir()?.join(\"input\"))?;\n" +
 				"	let input = input.chars().map(|x|x as u32).collect::\\<Vec\\<_> >();\n" +
-				"	let mut _lexer = <lexerName>::new(Box::new(InputStream::new(&*input)));\n" +
+				"	let mut _lexer = <lexerName>::new(InputStream::new(&*input));\n" +
 				"	{let mut token_source = UnbufferedTokenStream::new_unbuffered(&mut _lexer);\n" +
 				"		let tokens = token_source.token_iter().collect::\\<Vec\\<OwningToken>>();\n" +
 				"		for token in tokens.iter(){\n" +
