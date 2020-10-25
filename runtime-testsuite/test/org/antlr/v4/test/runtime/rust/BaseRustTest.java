@@ -426,7 +426,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 	}
 
 	private String executeRecognizer() {
-		System.out.println("dir: " + tmpdir);
+//		System.out.println("dir: " + tmpdir);
 		writeFile(tmpdir, "Cargo.toml",
 				"[package]\n" +
 						"name = \"antlr-test\"\n" +
@@ -459,7 +459,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 
 	private String cargo(String command) {
 		try {
-			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet", "--offline", cargo_options);
+			ProcessBuilder builder = new ProcessBuilder("cargo", command, "--quiet"/*, "--offline"*/, cargo_options);
 			builder.environment().put("CARGO_TARGET_DIR", outputdir);
 			builder.environment().put("RUST_BACKTRACE", "1");
 			builder.environment().put("RUSTFLAGS", "-Awarnings");
@@ -471,7 +471,7 @@ public class BaseRustTest implements RuntimeTestSupport {
 			stdoutVacuum.start();
 			stderrVacuum.start();
 			int rc = process.waitFor();
-			System.out.println("cargo " + command + ", exec time: " + (System.currentTimeMillis() - time));
+//			System.out.println("cargo " + command + ", exec time: " + (System.currentTimeMillis() - time));
 			stdoutVacuum.join();
 			stderrVacuum.join();
 			String output = stdoutVacuum.toString();
