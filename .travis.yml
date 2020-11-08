@@ -38,7 +38,7 @@ jobs:
         token: $GITHUB_TOKEN
         repo: rrevenantt/antlr4rust
         file: tool/target/antlr4-4.8-2-SNAPSHOT-complete.jar
-        tag_name: antlr4-4.8-2-Rust-0.2-dev.1
+        tag_name: antlr4-4.8-2-Rust-0.2-dev.2
         overwrite: true
         cleanup: false
         prerelease: true
