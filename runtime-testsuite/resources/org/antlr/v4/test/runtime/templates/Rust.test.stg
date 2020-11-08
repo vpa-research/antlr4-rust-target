@@ -197,7 +197,7 @@ TTreeWalker::walk(Box::new(TestListener), <s>.deref());
 
 TokenGetterListener(X) ::= <<
 @parser::definitions {
-use crate::antlr_rust::tree::Tree;
+use antlr_rust::tree::Tree;
 struct TestListener;
 
 impl TListener\<'_> for TestListener{
@@ -216,7 +216,7 @@ impl ParseTreeListener\<'_,TParserContextType> for TestListener{}
 RuleGetterListener(X) ::= <<
 @parser::definitions {
 
-use crate::antlr_rust::tree::Tree;
+use antlr_rust::tree::Tree;
 struct TestListener;
 
 impl TListener\<'_> for TestListener{

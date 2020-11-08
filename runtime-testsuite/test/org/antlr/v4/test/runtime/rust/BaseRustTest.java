@@ -434,7 +434,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 						"edition=\"2018\"\n" +
 						"\n" +
 						"[dependencies]\n" +
-						"lazy_static = \"1.4\"\n" +
 						"antlr-rust = { path = \"" + locateRuntimeSrc() + "\"}");
 
 		cargo("build");
@@ -642,9 +641,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 		ST outputFileST = new ST("#![feature(try_blocks)]\n" +
 				"#![feature(inner_deref)]\n" +
 				"#![feature(specialization)]\n" +
-				"extern crate antlr_rust;\n" +
-				"#[macro_use]\n" +
-				"extern crate lazy_static;\n" +
 				"mod <importLexer>;\n" +
 				"use <importLexer>::*;\n" +
 				"mod <importParser>;\n" +
@@ -690,8 +686,6 @@ public class BaseRustTest implements RuntimeTestSupport {
 
 	protected void writeLexerTestFile(String lexerName, boolean showDFA) {
 		ST outputFileST = new ST("use antlr_rust::*;\n" +
-				"#[macro_use]\n" +
-				"extern crate lazy_static;\n" +
 				"mod <importName>;\n" +
 				"use <importName>::*;\n" +
 				"use antlr_rust::InputStream;\n" +
