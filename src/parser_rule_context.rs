@@ -21,6 +21,7 @@ use crate::token::Token;
 use crate::token_factory::{CommonTokenFactory, TokenFactory};
 use crate::tree::{
     ErrorNode, ParseTree, ParseTreeListener, ParseTreeVisitor, TerminalNode, Tree, Visitable,
+    VisitableDyn,
 };
 use better_any::{Tid, TidAble, TidExt};
 
@@ -131,7 +132,7 @@ pub trait RuleContextExt<'input>: ParserRuleContext<'input> {
     fn accept_children<V>(&self, visitor: &mut V)
     where
         V: ParseTreeVisitor<'input, Self::Ctx> + ?Sized,
-        <Self::Ctx as ParserNodeType<'input>>::Type: Visitable<V>;
+        <Self::Ctx as ParserNodeType<'input>>::Type: VisitableDyn<V>;
 }
 
 impl<'input, T: ParserRuleContext<'input> + ?Sized + 'input> RuleContextExt<'input> for T {
@@ -177,27 +178,11 @@ impl<'input, T: ParserRuleContext<'input> + ?Sized + 'input> RuleContextExt<'inp
     fn accept_children<V>(&self, visitor: &mut V)
     where
         V: ParseTreeVisitor<'input, Self::Ctx> + ?Sized,
-        <Self::Ctx as ParserNodeType<'input>>::Type: Visitable<V>,
+        <Self::Ctx as ParserNodeType<'input>>::Type: VisitableDyn<V>,
     {
-        self.get_children().for_each(|child| child.accept(visitor))
+        self.get_children()
+            .for_each(|child| child.accept_dyn(visitor))
     }
-}
-
-//requires ParserRuleContext to be Sync
-//lazy_static! {
-//    pub static ref EMPTY_CTX: Box<dyn ParserRuleContext> =
-//        Box::new(BaseParserRuleContext::new_parser_ctx(None,-1,CustomRuleContextInternal));
-//}
-
-//todo do not calc this every time, maybe threadlocal? or it might be ok as it is because it is inlined
-#[inline]
-pub(crate) fn empty_ctx<'a, TF: TokenFactory<'a>>(
-) -> Box<BaseRuleContext<'a, EmptyCustomRuleContext<'a, TF>>> {
-    Box::new(BaseRuleContext::new_ctx(
-        None,
-        -1,
-        EmptyCustomRuleContext(PhantomData),
-    ))
 }
 
 #[inline]
