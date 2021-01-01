@@ -703,7 +703,11 @@ public class BaseRustTest implements RuntimeTestSupport {
 				"			println!(\"{}\",token);\n" +
 				"		}\n" +
 				"	}\n" +
-				(showDFA ? "print!(\"{}\",_lexer.get_interpreter().unwrap().get_dfa_for_mode(antlr_rust::lexer::LEXER_DEFAULT_MODE).to_lexer_string());\n" : "") +
+				(showDFA ?
+						"print!(\"{}\",_lexer.get_interpreter().unwrap()" +
+								".get_dfa_for_mode(antlr_rust::lexer::LEXER_DEFAULT_MODE)" +
+								".read().to_lexer_string());\n"
+						: "") +
 				"	Ok(())" +
 				"}\n"
 		);

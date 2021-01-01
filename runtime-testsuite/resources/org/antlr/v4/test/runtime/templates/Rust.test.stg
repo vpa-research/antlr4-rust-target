@@ -17,6 +17,7 @@ DeclareLocal(s,v) ::= "let mut <s> = <v>"
 AssertIsList(v) ::= "" //not sure if possible in Rust
 AssignLocal(s,v) ::= "<s> = <v>;"
 
+InitIntVar(n,v) ::= "let <n> = <v>;"
 InitIntMember(n,v) ::= <<}
 @parser::fields {<n>: isize,}
 @parser::init   {<n>: <v>,
@@ -64,7 +65,7 @@ GetExpectedTokenNames() ::= "recog.base.get_expected_tokens().to_token_string(re
 
 RuleInvocationStack() ::= "format!(\"[{}]\",recog.get_rule_invocation_stack().join(\", \"))"
 
-LL_EXACT_AMBIG_DETECTION() ::= <<recog.get_interpreter().set_prediction_mode(antlr_rust::prediction_mode::PredictionMode::LL_EXACT_AMBIG_DETECTION);>>
+LL_EXACT_AMBIG_DETECTION() ::= <<recog.get_interpreter().set_prediction_mode(antlr_rust::PredictionMode::LL_EXACT_AMBIG_DETECTION);>>
 
 //ParserToken(parser, token) ::= <%<parser>.<token>%>
 ParserToken(parser, token) ::= <%self::<token>%>
