@@ -229,4 +229,9 @@ public class RustTarget extends Target {
 		// C99 and Python share the same escaping style.
 		UnicodeEscapes.appendSwiftStyleEscapedCodePoint(codePoint, sb);
 	}
+
+	@Override
+	public int getInlineTestSetWordSize() {
+		return 32;
+	}
 }
