@@ -19,81 +19,41 @@ import org.stringtemplate.v4.STGroup;
 import org.stringtemplate.v4.StringRenderer;
 import org.stringtemplate.v4.misc.STMessage;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 public class RustTarget extends Target {
+	protected static final Map<Character, String> targetCharValueEscape;
 
-	protected static final String[] rustKeywords = {
-			"_", "abstract", "alignof", "as", "become ",
-			"box", "break", "const", "continue", "crate",
-			"do", "else", "enum", "extern", "false",
-			"final", "fn", "for", "if", "impl",
-			"in", "let", "loop", "macro", "match",
-			"mod", "move", "mut", "offsetof", "override",
-			"priv", "proc", "pub", "pure", "ref",
-			"return", "Self", "self", "sizeof", "static",
-			"struct", "super", "trait", "true", "type",
-			"typeof", "unsafe", "unsized", "use", "virtual",
-			"where", "while", "yield"
-	};
+	static {
+		HashMap<Character, String> map = new HashMap<>();
+		addEscapedChar(map, '\0', '0');
+		addEscapedChar(map, '\\');
+		addEscapedChar(map, '\t', 't');
+		addEscapedChar(map, '\n', 'n');
+		addEscapedChar(map, '\r', 'r');
+		addEscapedChar(map, '\"');
+		addEscapedChar(map, '\'');
+		targetCharValueEscape = map;
+	}
 
-	/**
-	 * Avoid grammar symbols in this set to prevent conflicts in gen'd code.
-	 */
-	protected final Set<String> badWords = new HashSet<String>();
+	protected static final HashSet<String> reservedWords = new HashSet<>(Arrays.asList(
+		"_", "abstract", "alignof", "as", "become ",
+		"box", "break", "const", "continue", "crate",
+		"do", "else", "enum", "extern", "false",
+		"final", "fn", "for", "if", "impl",
+		"in", "let", "loop", "macro", "match",
+		"mod", "move", "mut", "offsetof", "override",
+		"priv", "proc", "pub", "pure", "ref",
+		"return", "Self", "self", "sizeof", "static",
+		"struct", "super", "trait", "true", "type",
+		"typeof", "unsafe", "unsized", "use", "virtual",
+		"where", "while", "yield",
+
+		"rule", "parserRule"
+	));
 
 	public RustTarget(CodeGenerator gen) {
-		super(gen, "Rust");
-	}
-
-	public String getVersion() {
-		return "4.8";
-	}
-
-	public Set<String> getBadWords() {
-		if (badWords.isEmpty()) {
-			addBadWords();
-		}
-
-		return badWords;
-	}
-
-	protected void addBadWords() {
-		badWords.addAll(Arrays.asList(rustKeywords));
-		badWords.add("rule");
-		badWords.add("parserRule");
-	}
-
-	@Override
-	public String encodeIntAsCharEscape(int v) {
-
-		if (v < Character.MIN_VALUE || v > Character.MAX_VALUE) {
-			throw new IllegalArgumentException(String.format("Cannot encode the specified value: %d", v));
-		}
-
-//		if (v >= 0 && v < targetCharValueEscape.length && targetCharValueEscape[v] != null) {
-//			return targetCharValueEscape[v];
-//		}
-
-//		if (v >= 0x20 && v < 127 && (!Character.isDigit(v) || v == '8' || v == '9')) {
-//			return String.valueOf((char)v);
-//		}
-
-		if (v >= 0 && v <= 127) {
-			String oct = Integer.toHexString(v | 0x100).substring(1, 3);
-			return "\\x" + oct;
-		}
-
-		//encode surrogates
-		if (v >= 0xD800 && v <= 0xDFFF) {
-			v += 0x3000;
-		}
-
-		String hex = Integer.toHexString(v);
-		return "\\u{" + hex + "}";
+		super(gen);
 	}
 
 	@Override
@@ -153,65 +113,28 @@ public class RustTarget extends Target {
 	}
 
 	@Override
-	protected boolean visibleGrammarSymbolCausesIssueInGeneratedCode(GrammarAST idNode) {
-		return getBadWords().contains(idNode.getText());
+	protected Set<String> getReservedWords() {
+		return reservedWords;
 	}
 
 	@Override
 	protected STGroup loadTemplates() {
 		STGroup result = super.loadTemplates();
-//		result.registerRenderer(Integer.class, new NumberRenderer());
-		result.registerRenderer(String.class, new RustStringRenderer(), true);
-		result.setListener(new STErrorListener() {
-			@Override
-			public void compileTimeError(STMessage msg) {
-				reportError(msg);
-			}
-
-			@Override
-			public void runTimeError(STMessage msg) {
-				reportError(msg);
-			}
-
-			@Override
-			public void IOError(STMessage msg) {
-				reportError(msg);
-			}
-
-			@Override
-			public void internalError(STMessage msg) {
-				reportError(msg);
-			}
-
-			private void reportError(STMessage msg) {
-				getCodeGenerator().tool.errMgr.toolError(ErrorType.STRING_TEMPLATE_WARNING, msg.cause, msg.toString());
-			}
-		});
+		result.registerRenderer(String.class, new RustStringRenderer());
 
 		return result;
 	}
 
 	protected static class RustStringRenderer extends StringRenderer {
-
 		@Override
 		public String toString(Object o, String formatString, Locale locale) {
 			if ("java-escape".equals(formatString)) {
 				// 5C is the hex code for the \ itself
 				return ((String) o).replace("\\u", "\\u{005C}u");
 			}
-			if ("low".equals(formatString)) {
-				return ((String) o).toLowerCase(locale);
-			}
 
 			return super.toString(o, formatString, locale);
 		}
-
-	}
-
-	@Override
-	public String processActionText(String text) {
-		// in rust `'` is not escapable so we don't care about inside string
-		return text.replaceAll("\\\\'", "'");
 	}
 
 	@Override
@@ -225,13 +148,26 @@ public class RustTarget extends Target {
 	}
 
 	@Override
-	protected void appendUnicodeEscapedCodePoint(int codePoint, StringBuilder sb) {
-		// C99 and Python share the same escaping style.
-		UnicodeEscapes.appendSwiftStyleEscapedCodePoint(codePoint, sb);
+	public int getInlineTestSetWordSize() {
+		return 32;
 	}
 
 	@Override
-	public int getInlineTestSetWordSize() {
-		return 32;
+	protected String escapeWord(String word) {
+		return "r#" + word;
+	}
+
+	@Override
+	protected String escapeChar(int v) {
+		if (v >= 0 && v <= 0x7f) {
+			return String.format("\\x%02X", v);
+		}
+
+		// encode surrogates
+		if (0xD800 <= v && v <= 0xDFFF) {
+			v += 0x3000;
+		}
+
+		return String.format("\\u{%X}", v);
 	}
 }
