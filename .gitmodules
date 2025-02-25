@@ -1,3 +1,3 @@
 [submodule "runtime/Rust"]
 	path = runtime/Rust
-	url = https://github.com/rrevenantt/antlr4rust
+	url = ../antlr4rust
