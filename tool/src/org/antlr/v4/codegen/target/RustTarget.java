@@ -8,16 +8,11 @@ package org.antlr.v4.codegen.target;
 
 import org.antlr.v4.codegen.CodeGenerator;
 import org.antlr.v4.codegen.Target;
-import org.antlr.v4.codegen.UnicodeEscapes;
 import org.antlr.v4.parse.ANTLRParser;
-import org.antlr.v4.tool.ErrorType;
 import org.antlr.v4.tool.Grammar;
-import org.antlr.v4.tool.ast.GrammarAST;
 import org.stringtemplate.v4.ST;
-import org.stringtemplate.v4.STErrorListener;
 import org.stringtemplate.v4.STGroup;
 import org.stringtemplate.v4.StringRenderer;
-import org.stringtemplate.v4.misc.STMessage;
 
 import java.util.*;
 
@@ -131,6 +126,9 @@ public class RustTarget extends Target {
 			if ("java-escape".equals(formatString)) {
 				// 5C is the hex code for the \ itself
 				return ((String) o).replace("\\u", "\\u{005C}u");
+			}
+			if ("low".equals(formatString)) {
+				return ((String) o).toLowerCase(locale);
 			}
 
 			return super.toString(o, formatString, locale);
